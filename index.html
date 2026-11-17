@@ -50,6 +50,15 @@ nav.tabs button.on{background:var(--accent);color:#fff}
 .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13.5px;display:inline-flex;align-items:center;gap:6px}
 .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .chip .x{opacity:.55;cursor:pointer}
+.chip.add{border-style:dashed;color:var(--accent-d);background:transparent}
+.addbox{display:inline-flex;gap:6px;align-items:center}
+.addbox input{width:170px;padding:5px 12px;border-radius:999px}
+mark{background:#F1DFC4;color:inherit;border-radius:4px;padding:0 2px}
+.searchbar{position:relative;margin-bottom:14px}
+.searchbar input{padding:11px 40px 11px 40px;border-radius:999px;background:var(--card)}
+#gq::-webkit-search-cancel-button{display:none}
+.searchbar .ic{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.searchbar .clr{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:var(--card2);border-radius:999px;width:28px;height:28px;cursor:pointer;color:var(--muted)}
 .scrollx{overflow-x:auto;scrollbar-width:thin}
 .scrollx .chips{flex-wrap:nowrap}
 .day{margin:14px 4px 6px;display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
@@ -125,6 +134,9 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
     <button data-tab="import">匯入</button>
     <button data-tab="settings">設定</button>
   </nav>
+  <div class="searchbar"><span class="ic">🔍</span>
+    <input type="search" id="gq" placeholder="搜尋過去紀錄：備註、類別、付款方式、金額、店家…" autocomplete="off">
+    <button class="clr" id="gqClr" title="清除" style="display:none">✕</button></div>
   <main id="view"></main>
 </div>
 <button class="fab" id="fab" title="記一筆">＋</button>
@@ -242,12 +254,17 @@ $('#selBook').onchange = async e => {
   } else S.ui.bookId = e.target.value;
   render();
 };
-$('#tabs').onclick = e => { const t = e.target.closest('button'); if (t) { S.ui.tab = t.dataset.tab; render(); } };
+$('#tabs').onclick = e => { const t = e.target.closest('button'); if (t) { S.ui.tab = t.dataset.tab; S.ui.q = ''; $('#gq').value = ''; render(); } };
+$('#gq').oninput = e => { S.ui.q = e.target.value; clearTimeout(S._qt); S._qt = setTimeout(render, 200); };
+$('#gq').onkeydown = e => { if (e.key === 'Escape') { e.target.value = ''; S.ui.q = ''; render(); } };
+$('#gqClr').onclick = () => { $('#gq').value = ''; S.ui.q = ''; render(); };
 $('#fab').onclick = () => openRecordForm();
 
 function render() {
   renderHeader(); saveUI();
   const v = $('#view');
+  $('#gqClr').style.display = S.ui.q ? '' : 'none';
+  if (S.ui.q.trim()) { $$('#tabs button').forEach(b => b.classList.remove('on')); $('#fab').style.display = ''; return renderSearch(v); }
   ({list: renderList, stats: renderStats, trips: renderTrips, import: renderImport, settings: renderSettings})[S.ui.tab](v);
   $('#fab').style.display = ['list', 'stats', 'trips'].includes(S.ui.tab) ? '' : 'none';
 }
@@ -271,8 +288,6 @@ function recHTML(r) {
 function renderList(v) {
   const all = scoped({ignoreMonth: true});
   let rs = scoped();
-  const q = S.ui.q.trim().toLowerCase();
-  if (q) rs = rs.filter(r => [r.note, r.category, r.payment, r.amount, bookName(r.bookId), ...Object.values(r.extra || {})].join(' ').toLowerCase().includes(q));
   rs.sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
   const inc = rs.filter(r => r.type === 'income').reduce((s, r) => s + base(r), 0);
   const exp = rs.filter(r => r.type !== 'income').reduce((s, r) => s + base(r), 0);
@@ -287,7 +302,6 @@ function renderList(v) {
       <span class="chip ${!S.ui.month ? 'on' : ''}" data-m="0">全年</span>
       ${Array.from({length: 12}, (_, i) => i + 1).map(m => `<span class="chip ${S.ui.month === m ? 'on' : ''}" data-m="${m}" style="${months.has(m) ? '' : 'opacity:.45'}">${m}月</span>`).join('')}
     </div></div>
-    <input type="search" id="q" placeholder="搜尋備註、類別、付款方式、金額…" value="${esc(S.ui.q)}" style="margin-top:10px">
   </div>`;
   if (!rs.length) html += `<div class="card empty">這段期間還沒有紀錄<br><span class="small">按右下角「＋」記一筆，或到「匯入」帶入舊資料</span></div>`;
   else {
@@ -308,11 +322,59 @@ function renderList(v) {
   }
   v.innerHTML = html;
   $('#months').onclick = e => { const c = e.target.closest('.chip'); if (c) { S.ui.month = +c.dataset.m; S._listLimit = 0; render(); } };
-  const qi = $('#q');
-  qi.oninput = () => { S.ui.q = qi.value; clearTimeout(S._qt); S._qt = setTimeout(() => { render(); const n = $('#q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); };
   v.onclick = e => {
     const r = e.target.closest('.rec'); if (r) openRecordForm(S.records.find(x => x.id === r.dataset.id));
     if (e.target.id === 'more') { S._listLimit = (S._listLimit || 120) + 200; render(); }
+  };
+}
+
+/* ================= 搜尋 ================= */
+const SR = {scope: 'all', type: 'all', sort: 'new', limit: 100};
+function hl(text, terms) {
+  let h = esc(text);
+  terms.forEach(t => { if (t) h = h.replace(new RegExp(esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark>${m}</mark>`); });
+  return h;
+}
+function renderSearch(v) {
+  const terms = S.ui.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let rs = S.records.filter(r => {
+    if (SR.scope === 'year' && +r.date.slice(0, 4) !== +S.ui.year) return false;
+    if (SR.type !== 'all' && (r.type === 'income' ? 'income' : 'expense') !== SR.type) return false;
+    const hay = [r.note, r.category, r.payment, r.date, r.currency, String(r.amount), String(Math.round(base(r))), bookName(r.bookId),
+      (tripOf(r.tripId) || {}).name, ...Object.values(r.extra || {})].join(' ').toLowerCase();
+    return terms.every(t => hay.includes(t));
+  });
+  rs.sort(SR.sort === 'old' ? (a, b) => a.date.localeCompare(b.date) : SR.sort === 'amt' ? (a, b) => base(b) - base(a) : (a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  const inc = rs.filter(r => r.type === 'income').reduce((s, r) => s + base(r), 0);
+  const exp = rs.filter(r => r.type !== 'income').reduce((s, r) => s + base(r), 0);
+  const ys = [...new Set(rs.map(r => r.date.slice(0, 4)))].sort();
+  const seg = (key, opts) => `<div class="chips" data-sr="${key}">${opts.map(([k, t]) => `<span class="chip ${SR[key] === k ? 'on' : ''}" data-v="${k}">${t}</span>`).join('')}</div>`;
+  v.innerHTML = `<div class="card">
+    <h3>搜尋「${esc(S.ui.q.trim())}」<span class="small muted sp">找到 ${rs.length} 筆${ys.length ? `（${ys[0]}${ys.length > 1 ? '～' + ys[ys.length - 1] : ''}）` : ''}</span></h3>
+    <div class="row" style="gap:8px 14px">
+      ${seg('scope', [['all', '全部年份'], ['year', `只看 ${S.ui.year} 年`]])}
+      ${seg('type', [['all', '收支皆可'], ['expense', '支出'], ['income', '收入']])}
+      ${seg('sort', [['new', '最新'], ['old', '最舊'], ['amt', '金額大→小']])}
+    </div>
+    ${rs.length ? `<div class="sum3" style="margin-top:12px">
+      <div><span class="small muted">收入合計</span><b class="inc">${fmt(inc)}</b></div>
+      <div><span class="small muted">支出合計</span><b class="exp">${fmt(exp)}</b></div>
+      <div><span class="small muted">平均每筆支出</span><b>${fmt(exp / (rs.filter(r => r.type !== 'income').length || 1))}</b></div></div>` : ''}
+    <div class="small muted" style="margin-top:8px">多個關鍵字用空白分隔，會找出同時符合的紀錄。也能搜尋金額、日期（如 2025-03）、帳冊、旅行名稱，以及匯入時保留的原始欄位。</div>
+  </div>
+  ${rs.length ? `<div class="card" style="padding:6px 10px">${rs.slice(0, SR.limit).map(r => {
+      let h = recHTML(r).replace('<div class="t">' + esc(r.note || r.category) + '</div>', `<div class="t"><span class="small muted">${r.date.replace(/-/g, '/')}</span>　${hl(r.note || r.category, terms)}</div>`);
+      const extraHit = Object.entries(r.extra || {}).filter(([, val]) => terms.some(t => String(val).toLowerCase().includes(t)));
+      if (extraHit.length) h = h.replace('</div>\n    </div>', `<div class="small muted">${extraHit.map(([k, val]) => `${esc(k)}：${hl(val, terms)}`).join('　')}</div></div>\n    </div>`);
+      return h;
+    }).join('')}</div>
+    ${rs.length > SR.limit ? `<div class="row" style="justify-content:center"><button class="btn" id="srMore">顯示更多（還有 ${rs.length - SR.limit} 筆）</button></div>` : ''}`
+    : `<div class="card empty">找不到符合的紀錄<br><span class="small">試試較短的關鍵字，或切換成「全部年份」</span></div>`}`;
+  v.onclick = e => {
+    const c = e.target.closest('[data-sr] .chip');
+    if (c) { SR[c.parentElement.dataset.sr] = c.dataset.v; SR.limit = 100; return render(); }
+    if (e.target.id === 'srMore') { SR.limit += 200; return render(); }
+    const r = e.target.closest('.rec'); if (r) openRecordForm(S.records.find(x => x.id === r.dataset.id));
   };
 }
 
@@ -366,6 +428,23 @@ function suggestions(q, type) {
     .sort((a, b) => b.rank - a.rank).slice(0, 5);
 }
 
+/* 選項 chips + 就地新增 */
+function chipPicker(el, {items, value, onPick, onAdd, placeholder = '', allowNone = false}) {
+  el.innerHTML = (allowNone ? `<span class="chip ${!value ? 'on' : ''}" data-v="">不填</span>` : '') +
+    items.map(c => `<span class="chip ${c === value ? 'on' : ''}" data-v="${esc(c)}">${esc(c)}</span>`).join('') +
+    `<span class="chip add" data-add="1">＋ 新增…</span>`;
+  el.onclick = e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    if (!c.dataset.add) return onPick(c.dataset.v);
+    c.outerHTML = `<span class="addbox"><input type="text" placeholder="${esc(placeholder)}" maxlength="20"><button type="button" class="btn pri sm">加入</button><button type="button" class="btn sm" data-x="1">✕</button></span>`;
+    const box = $('.addbox', el), inp = $('input', box);
+    const commit = () => { const v = inp.value.trim(); if (v) onAdd(v); else toast('請輸入名稱'); };
+    inp.focus();
+    inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); } if (ev.key === 'Escape') onPick(value); };
+    box.onclick = ev => { ev.stopPropagation(); if (ev.target.dataset.x) onPick(value); else if (ev.target.tagName === 'BUTTON') commit(); };
+  };
+}
+
 function openRecordForm(rec, preset = {}) {
   const isNew = !rec;
   const st = S.settings;
@@ -386,9 +465,9 @@ function openRecordForm(rec, preset = {}) {
     <div class="field"><label>備註／品項（輸入關鍵字會帶出相似紀錄）</label>
       <input id="fNote" type="text" autocomplete="off" placeholder="例如：午餐、捷運、超商" value="${esc(f.note)}"><div class="sugg" id="fSugg"></div></div>
     <div class="field"><label>類別</label><div class="chips" id="fCats"></div></div>
+    <div class="field"><label>付款方式</label><div class="chips" id="fPays"></div></div>
     <div class="grid2">
       <div class="field"><label>日期</label><input id="fDate" type="date" value="${esc(f.date)}"></div>
-      <div class="field"><label>付款方式</label><select id="fPay"></select></div>
       <div class="field"><label>帳冊</label><select id="fBook"></select></div>
       <div class="field"><label>旅行（選填）</label><select id="fTrip"></select></div>
     </div>
@@ -407,15 +486,27 @@ function openRecordForm(rec, preset = {}) {
   $('#fTrip', m).innerHTML = `<option value="">— 無 —</option>` + S.trips.map(t => `<option value="${t.id}" ${t.id === f.tripId ? 'selected' : ''}>${esc(t.name)}（${t.currency}）</option>`).join('');
 
   function drawPay() {
-    const ps = [...new Set([...st.payments, f.payment].filter(Boolean))];
-    $('#fPay', m).innerHTML = `<option value="">—</option>` + ps.map(p => `<option ${p === f.payment ? 'selected' : ''}>${esc(p)}</option>`).join('') + `<option value="__new">＋ 新增…</option>`;
+    chipPicker($('#fPays', m), {
+      items: [...new Set([...st.payments, f.payment].filter(Boolean))], value: f.payment, allowNone: true,
+      placeholder: '例如：玉山信用卡、LINE Pay',
+      onPick: v => { f.payment = v; drawPay(); },
+      onAdd: async v => { if (!st.payments.includes(v)) { st.payments.push(v); await saveSettings(); } f.payment = v; drawPay(); }
+    });
   }
   function drawType() { $$('#fType button', m).forEach(b => b.classList.toggle('on', b.dataset.v === f.type)); }
   function drawCats() {
     const list = f.type === 'income' ? st.incomeCats : st.expenseCats;
     const cats = [...new Set([...list, f.category].filter(Boolean))];
     if (!f.category) f.category = cats[0];
-    $('#fCats', m).innerHTML = cats.map(c => `<span class="chip ${c === f.category ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</span>`).join('') + `<span class="chip" data-c="__new">＋</span>`;
+    chipPicker($('#fCats', m), {
+      items: cats, value: f.category, placeholder: f.type === 'income' ? '例如：股利、租金' : '例如：寵物、保險',
+      onPick: v => { f.category = v; drawCats(); },
+      onAdd: async v => {
+        const key = f.type === 'income' ? 'incomeCats' : 'expenseCats';
+        if (!st[key].includes(v)) { st[key].push(v); await saveSettings(); }
+        f.category = v; drawCats();
+      }
+    });
   }
   function drawRate() {
     const foreign = f.currency !== st.baseCur;
@@ -438,16 +529,6 @@ function openRecordForm(rec, preset = {}) {
   drawType(); drawCats(); drawPay(); drawRate(); drawPhoto();
 
   $('#fType', m).onclick = e => { const b = e.target.closest('button'); if (!b) return; f.type = b.dataset.v; f.category = ''; drawType(); drawCats(); drawSugg(); };
-  $('#fCats', m).onclick = async e => {
-    const c = e.target.closest('.chip'); if (!c) return;
-    if (c.dataset.c === '__new') {
-      const n = prompt('新增類別名稱：'); if (!n || !n.trim()) return;
-      const key = f.type === 'income' ? 'incomeCats' : 'expenseCats';
-      if (!st[key].includes(n.trim())) { st[key].push(n.trim()); await saveSettings(); }
-      f.category = n.trim();
-    } else f.category = c.dataset.c;
-    drawCats();
-  };
   $('#fAmt', m).oninput = e => { f.amount = e.target.value; drawRate(); };
   $('#fRate', m).oninput = e => { f.rate = e.target.value; drawRate(); };
   $('#fCur', m).onchange = e => {
@@ -459,13 +540,6 @@ function openRecordForm(rec, preset = {}) {
   $('#fTrip', m).onchange = e => {
     f.tripId = e.target.value; const t = tripOf(f.tripId);
     if (t) { f.currency = t.currency; f.rate = t.rate; $('#fCur', m).value = t.currency; $('#fRate', m).value = t.rate; drawRate(); }
-  };
-  $('#fPay', m).onchange = async e => {
-    if (e.target.value === '__new') {
-      const n = prompt('新增付款方式：');
-      if (n && n.trim()) { if (!st.payments.includes(n.trim())) { st.payments.push(n.trim()); await saveSettings(); } f.payment = n.trim(); }
-      drawPay();
-    } else f.payment = e.target.value;
   };
   const noteI = $('#fNote', m);
   noteI.oninput = () => { f.note = noteI.value; drawSugg(); };
