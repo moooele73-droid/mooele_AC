@@ -18,6 +18,11 @@ html,body{margin:0;background:var(--bg);color:var(--text);
   font-size:15px;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
 .wrap{max-width:880px;margin:0 auto;padding:16px 16px 110px}
+.topbar{position:sticky;top:0;z-index:40;background:var(--bg);margin:-16px -16px 14px;padding:calc(12px + env(safe-area-inset-top)) 16px 10px;transition:box-shadow .2s}
+.topbar.scrolled{box-shadow:0 6px 14px -10px rgba(90,70,50,.35);border-bottom:1px solid var(--line)}
+.topbar header.top{margin-bottom:10px}
+.topbar nav.tabs{margin-bottom:10px}
+.topbar .searchbar{margin-bottom:0}
 header.top{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .brand{font-size:20px;font-weight:700;letter-spacing:.5px;margin-right:auto;display:flex;align-items:center;gap:8px}
 .brand i{width:26px;height:26px;border-radius:9px;background:var(--accent);display:inline-block;position:relative}
@@ -187,6 +192,7 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
 </head>
 <body>
 <div class="wrap">
+  <div class="topbar" id="topbar">
   <header class="top">
     <div class="brand"><i></i>米記帳</div>
     <select id="selYear" title="年份"></select>
@@ -202,12 +208,13 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
   <div class="searchbar"><span class="ic">🔍</span>
     <input type="search" id="gq" placeholder="搜尋過去紀錄：備註、類別、付款方式、金額、店家…" autocomplete="off">
     <button class="clr" id="gqClr" title="清除" style="display:none">✕</button></div>
+  </div>
   <main id="view"></main>
 </div>
 <button class="fab" id="fab" title="記一筆">＋</button>
 
 <script>
-const APP_VERSION = '2.4（2026-11-17）';
+const APP_VERSION = '2.7（2026-11-17）';
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -277,6 +284,10 @@ async function load() {
   const mig = S.records.filter(r => r.tripId && r.bookId); mig.forEach(r => r.bookId = '');
   if (mig.length) await putMany('records', mig);
   try { Object.assign(S.ui, JSON.parse(localStorage.getItem('mi-ui') || '{}'), {q: ''}); } catch (e) {}
+  // 每次打開：直接到「明細」，停在最新一筆紀錄的月份（不含未來日期；沒有紀錄就用本月）
+  const t = today(), past = S.records.map(r => r.date).filter(d => d <= t).sort();
+  const latest = past[past.length - 1] || t;
+  Object.assign(S.ui, {tab: 'list', bookId: 'all', year: +latest.slice(0, 4), month: +latest.slice(5, 7)});
 }
 const saveSettings = () => put('meta', S.settings);
 const saveUI = () => { try { localStorage.setItem('mi-ui', JSON.stringify({tab: S.ui.tab, year: S.ui.year, bookId: S.ui.bookId, statType: S.ui.statType, unit: S.ui.unit, incTrips: S.ui.incTrips, statMode: S.ui.statMode})); } catch (e) {} };
@@ -364,7 +375,7 @@ function recHTML(r) {
       <div class="small muted">${esc(r.category)}${r.payment ? ' · ' + esc(r.payment) : ''}${t ? `<span class="tag">✈ ${esc(t.name)}</span>` : ''}${r.extra && Object.keys(r.extra).length ? '<span class="tag">匯入</span>' : ''}</div>
     </div>
     <div class="amt ${r.type === 'income' ? 'inc' : 'exp'}">
-      ${r.type === 'income' ? '+' : '−'}${fmt(base(r))}
+      ${r.type === 'income' ? '+' : '−'}${foreign ? fmtI(base(r)) : fmt(base(r))}
       ${foreign ? `<div class="small muted" style="font-weight:400">${esc(r.currency)} ${fmt(r.amount)}</div>` : ''}
     </div></div>`;
 }
@@ -850,40 +861,43 @@ function periodKey(date, unit) {
 }
 function statsScope() { return scoped(); }
 /* 統計細項：點類別／期間／付款方式，列出對應的紀錄 */
-function openDrill(kind, key) {
-  const {unit, statType} = S.ui;
+function openDrill(kind, key, custom = null) {
+  const {unit} = S.ui; const statType = custom ? 'expense' : S.ui.statType;
+  const A = custom?.val || base, C = custom?.cur ? custom.cur + ' ' : '';
   const DT = {cat: '類別', pay: '付款方式', per: '期間'};
   const sel = {sort: 'date', sub: ''};
-  const pick = () => forStats(statsScope()).filter(r =>
+  const pick = custom ? custom.pick : () => forStats(statsScope()).filter(r =>
     kind === 'per' ? periodKey(r.date, unit).k === key
       : ((r.type === 'income') === (statType === 'income')) && (kind === 'cat' ? (r.category || '未分類') === key : (r.payment || '未填') === key));
   const first = kind === 'per' ? pick()[0] : null;
   const title = first ? periodKey(first.date, unit).label : key;
-  const m = openModal(`<h2>${esc(title)} <span class="small muted" style="font-weight:400">${DT[kind]}${kind !== 'per' ? (statType === 'income' ? '・收入' : '・支出') : ''}</span></h2><div id="dBody"></div>`);
+  const sub = custom ? custom.sub : DT[kind] + (kind !== 'per' ? (statType === 'income' ? '・收入' : '・支出') : '');
+  const m = openModal(`<h2>${esc(title)} <span class="small muted" style="font-weight:400">${esc(sub)}</span></h2><div id="dBody"></div>`);
   m._refresh = draw;
   function draw() {
     let rs = pick();
     const subKey = r => kind === 'cat' ? ((r.note || '').split(/[\s：:、,，\n]/)[0] || '（無備註）') : (r.category || '未分類');
-    const subs = {}; rs.forEach(r => { const k = subKey(r); subs[k] = subs[k] || {v: 0, n: 0}; subs[k].v += kind === 'per' && r.type === 'income' ? 0 : base(r); subs[k].n++; });
+    const subs = {}; rs.forEach(r => { const k = subKey(r); subs[k] = subs[k] || {v: 0, n: 0}; subs[k].v += kind === 'per' && r.type === 'income' ? 0 : A(r); subs[k].n++; });
     const subList = Object.entries(subs).filter(([, o]) => kind !== 'cat' || o.n >= 2).sort((a, b) => b[1].v - a[1].v || b[1].n - a[1].n);   // 品項只列出現兩次以上的
     if (sel.sub) rs = rs.filter(r => subKey(r) === sel.sub);
-    rs.sort(sel.sort === 'amt' ? (a, b) => base(b) - base(a) : (a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
-    const inc = rs.filter(r => r.type === 'income').reduce((s, r) => s + base(r), 0), exp = rs.filter(r => r.type !== 'income').reduce((s, r) => s + base(r), 0);
+    rs.sort(sel.sort === 'amt' ? (a, b) => A(b) - A(a) : (a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+    const inc = rs.filter(r => r.type === 'income').reduce((s, r) => s + A(r), 0), exp = rs.filter(r => r.type !== 'income').reduce((s, r) => s + A(r), 0);
     const days = new Set(rs.map(r => r.date)).size;
     $('#dBody', m).innerHTML = `
       <div class="sum3" style="margin-bottom:12px">
         ${kind === 'per' ? `<div><span class="small muted">收入</span><b class="inc">${fmtI(inc)}</b></div><div><span class="small muted">支出</span><b class="exp">${fmtI(exp)}</b></div><div><span class="small muted">損益</span><b>${fmtI(inc - exp)}</b></div>`
-        : `<div><span class="small muted">合計</span><b class="${statType === 'income' ? 'inc' : 'exp'}">${fmtI(inc + exp)}</b></div><div><span class="small muted">筆數</span><b>${rs.length}</b></div><div><span class="small muted">平均每筆</span><b>${fmtI((inc + exp) / (rs.length || 1))}</b></div>`}
+        : `<div><span class="small muted">合計</span><b class="${statType === 'income' ? 'inc' : 'exp'}">${C}${fmtI(inc + exp)}</b></div><div><span class="small muted">筆數</span><b>${rs.length}</b></div><div><span class="small muted">平均每筆</span><b>${C}${fmtI((inc + exp) / (rs.length || 1))}</b></div>`}
       </div>
       ${subList.length > (kind === 'cat' ? 0 : 1) ? `<div class="lbl">${kind === 'cat' ? '依品項（備註第一個詞）' : '依類別'}篩選</div><div class="scrollx" style="margin-bottom:10px"><div class="chips" id="dSub">
         <span class="chip ${!sel.sub ? 'on' : ''}" data-s="">全部 ${pick().length}</span>
         ${subList.slice(0, 30).map(([k, o]) => `<span class="chip ${sel.sub === k ? 'on' : ''}" data-s="${esc(k)}">${esc(k)} <span class="${sel.sub === k ? '' : 'muted'}" style="font-size:12px">${o.n}・${fmtI(o.v)}</span></span>`).join('')}</div></div>` : ''}
-      <div class="row" style="margin-bottom:8px"><span class="small muted" style="flex:1">${rs.length} 筆・${days} 天${S.ui.incTrips ? '' : '・不含旅行帳目'}</span>
+      <div class="row" style="margin-bottom:8px"><span class="small muted" style="flex:1">${rs.length} 筆・${days} 天${S.ui.incTrips || custom || String(S.ui.bookId).startsWith('trip:') ? '' : '・不含旅行帳目'}</span>
         <div class="seg" id="dSort" style="font-size:13px"><button class="n ${sel.sort === 'date' ? 'on' : ''}" data-v="date">依日期</button><button class="n ${sel.sort === 'amt' ? 'on' : ''}" data-v="amt">依金額</button></div></div>
       <div class="card" style="padding:4px 10px">${rs.length ? rs.slice(0, 500).map(r => recHTML(r).replace('<div class="t">', `<div class="t"><span class="small muted">${r.date.slice(5).replace(/-/g, '/')}</span>　`)).join('') : '<div class="empty">沒有紀錄</div>'}</div>
       ${rs.length > 500 ? `<div class="small muted">僅顯示前 500 筆</div>` : ''}
       <div class="actions"><button class="btn" id="dClose">關閉</button></div>`;
     $('#dClose', m).onclick = () => m.remove();
+    fitNums();
   }
   m.onclick = e => {
     const c = e.target.closest('#dSub .chip'); if (c) { sel.sub = c.dataset.s; return draw(); }
@@ -1013,7 +1027,7 @@ function renderTrips(v) {
         ${s.refund ? `<div class="tripinc" data-act="incs">這趟另有 <b class="inc">${s.incN} 筆收入 ${esc(t.currency)} ${fmtI(s.refund)}</b>（未從花費中扣除）<span class="muted"> · 查看 ›</span></div>` : ''}
         ${t.budget ? `<div class="bar"><i style="width:${pct}%;background:${over ? 'var(--exp)' : 'var(--accent)'}"></i></div>
         <div class="small muted" style="margin-top:6px">${over ? `已超支 ${t.currency} ${fmt(net - t.budget)}` : `剩餘 ${t.currency} ${fmt(t.budget - net)}（≈ ${st.baseCur} ${fmt((t.budget - net) * t.rate)}）`}</div>` : ''}
-        ${Object.keys(s.byCat).length ? `<div class="chips" style="margin-top:12px">${Object.entries(s.byCat).sort((a, b) => b[1] - a[1]).map(([c, val]) => `<span class="chip" style="cursor:default"><i style="width:8px;height:8px;border-radius:3px;background:${colorOf(c)}"></i>${esc(c)} ${fmtI(val)}</span>`).join('')}</div>` : ''}
+        ${Object.keys(s.byCat).length ? `<div class="chips" style="margin-top:12px">${Object.entries(s.byCat).sort((a, b) => b[1] - a[1]).map(([c, val]) => `<span class="chip" data-act="tcat" data-k="${esc(c)}"><i style="width:8px;height:8px;border-radius:3px;background:${colorOf(c)}"></i>${esc(c)} ${fmtI(val)} <span class="muted">›</span></span>`).join('')}</div>` : ''}
         ${Object.keys(s.byCur).length > 1 ? `<div class="small muted" style="margin-top:8px">各幣別實付：${Object.entries(s.byCur).map(([c, val]) => `${esc(c)} ${fmt(val)}`).join('、')}</div>` : ''}
         <div class="row" style="margin-top:14px"><button class="btn pri sm" data-act="add">記一筆</button><button class="btn sm" data-act="list">明細（${s.rs.length}）</button><button class="btn sm" data-act="assign">把既有紀錄歸入</button><button class="btn sm" data-act="edit">編輯</button></div>
       </div>`;
@@ -1027,6 +1041,14 @@ function renderTrips(v) {
       openRecordForm(null, {tripId: t.id, date: t.start && today() < t.start ? t.start : today(), bookId: yb ? yb.id : undefined});
     }
     if (b.dataset.act === 'edit') openTripForm(t);
+    if (b.dataset.act === 'tcat') {
+      const k = b.dataset.k;
+      openDrill('cat', k, {
+        sub: `✈ ${t.name}`, cur: t.currency,
+        pick: () => S.records.filter(r => r.tripId === t.id && r.type !== 'income' && (r.category || '未分類') === k),
+        val: r => r.currency === t.currency ? +r.amount : base(r) / (+t.rate || 1)
+      });
+    }
     if (b.dataset.act === 'incs') {
       const incs = S.records.filter(r => r.tripId === t.id && r.type === 'income').sort((a, b) => a.date.localeCompare(b.date));
       const m = openModal(`<h2>${esc(t.name)} 的收入紀錄</h2>
@@ -1880,6 +1902,9 @@ function renderSettings(v) {
   };
   $('#baseCur').onchange = async e => { st.baseCur = e.target.value; await saveSettings(); render(); };
 }
+
+/* 頂端列捲動後加上陰影 */
+window.addEventListener('scroll', () => $('#topbar').classList.toggle('scrolled', window.scrollY > 4), {passive: true});
 
 /* 整頁左右滑動：明細切換月份、統計切換期間 */
 addSwipe(document.querySelector('.wrap'), d => {
