@@ -54,11 +54,16 @@ nav.tabs button.on{background:var(--accent);color:#fff}
 .inc{color:var(--inc)} .exp{color:var(--exp)}
 .sum3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .sum3 div{background:var(--card2);border-radius:var(--r-s);padding:10px 12px;min-width:0}
-.sum3 b{display:block;font-size:clamp(15px,4.4vw,19px);margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum3 b{display:block;font-size:19px;margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.2px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{white-space:nowrap;flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13.5px;display:inline-flex;align-items:center;gap:6px}
 .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .chip .x{opacity:.55;cursor:pointer}
+.chip .grip{cursor:grab;touch-action:none;color:var(--muted);margin:-5px -2px -5px -6px;padding:5px 2px 5px 6px;font-size:15px;line-height:1;user-select:none;-webkit-user-select:none}
+.sortlist .sortable{cursor:default;transition:transform .12s,box-shadow .12s}
+.sortlist.sorting{user-select:none;-webkit-user-select:none}
+.sortable.dragging{background:var(--accent);color:#fff;border-color:var(--accent);transform:scale(1.08);box-shadow:0 6px 16px rgba(140,106,79,.35);pointer-events:none;z-index:2;position:relative}
+.sortable.dragging .grip{color:#fff}
 .chip.add{border-style:dashed;color:var(--accent-d);background:transparent}
 .addbox{display:inline-flex;gap:6px;align-items:center}
 .addbox input{width:170px;padding:5px 12px;border-radius:999px}
@@ -126,6 +131,19 @@ body.locked{position:fixed;left:0;right:0;overflow:hidden}
 .bar{height:8px;background:var(--card2);border-radius:99px;overflow:hidden}
 .bar>i{display:block;height:100%;border-radius:99px;background:var(--accent)}
 .catrow{display:grid;grid-template-columns:14px 1fr auto;gap:8px 10px;align-items:center;padding:6px 0}
+.pnav{display:flex;align-items:center;gap:8px;margin:14px 0 12px}
+.plabel{flex:1;text-align:center;font-size:19px;font-weight:700}
+.plabel .small{font-weight:400;font-size:11.5px;margin-top:2px}
+.pbtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--card);font-size:24px;cursor:pointer;color:var(--accent-d);flex:none}
+.pbtn:disabled{opacity:.3;cursor:default}
+.wrap{touch-action:pan-y;min-height:100vh}
+.slide-l{animation:slideL .22s ease-out}.slide-r{animation:slideR .22s ease-out}
+@keyframes slideL{from{transform:translateX(28px);opacity:.3}}
+@keyframes slideR{from{transform:translateX(-28px);opacity:.3}}
+.drill{cursor:pointer;border-radius:10px;transition:background .12s}
+.catrow.drill:hover,tr.drill:hover td{background:var(--card2)}
+.catrow.drill{padding:6px;margin:0 -6px}
+.catrow.drill:active,tr.drill:active td{background:#EFE3D3}
 .catrow .sw{width:12px;height:12px;border-radius:4px}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 th,td{padding:8px 8px;text-align:right;border-bottom:1px solid var(--line);font-size:14px;white-space:nowrap}
@@ -135,6 +153,7 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
 .donut-wrap{display:grid;grid-template-columns:200px 1fr;gap:18px;align-items:center}
 @media(max-width:560px){.donut-wrap{grid-template-columns:1fr}.donut-wrap svg{max-width:200px;margin:0 auto;display:block}.grid2{grid-template-columns:1fr}}
 .trip .hd{display:flex;align-items:baseline;gap:8px}
+.tripinc{font-size:13px;background:#EEF3EC;border-radius:10px;padding:7px 10px;margin:6px 0;cursor:pointer}
 .trip .big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
 .kv{font-size:13px;display:grid;grid-template-columns:auto 1fr;gap:3px 12px;background:var(--card2);padding:10px;border-radius:var(--r-s)}
 .kv span:nth-child(odd){color:var(--muted)}
@@ -188,7 +207,7 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
 <button class="fab" id="fab" title="記一筆">＋</button>
 
 <script>
-const APP_VERSION = '1.9（2026-11-17）';
+const APP_VERSION = '2.4（2026-11-17）';
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -254,10 +273,13 @@ async function load() {
   const meta = await getAll('meta');
   S.settings = Object.assign(structuredClone(DEFAULT_SETTINGS), meta.find(m => m.id === 'settings') || {});
   if (!S.books.length) await ensureBook(new Date().getFullYear());
+  // 旅行帳目不屬於任何帳冊（舊資料一次性轉換）
+  const mig = S.records.filter(r => r.tripId && r.bookId); mig.forEach(r => r.bookId = '');
+  if (mig.length) await putMany('records', mig);
   try { Object.assign(S.ui, JSON.parse(localStorage.getItem('mi-ui') || '{}'), {q: ''}); } catch (e) {}
 }
 const saveSettings = () => put('meta', S.settings);
-const saveUI = () => { try { localStorage.setItem('mi-ui', JSON.stringify({tab: S.ui.tab, year: S.ui.year, bookId: S.ui.bookId, statType: S.ui.statType, unit: S.ui.unit, incTrips: S.ui.incTrips})); } catch (e) {} };
+const saveUI = () => { try { localStorage.setItem('mi-ui', JSON.stringify({tab: S.ui.tab, year: S.ui.year, bookId: S.ui.bookId, statType: S.ui.statType, unit: S.ui.unit, incTrips: S.ui.incTrips, statMode: S.ui.statMode})); } catch (e) {} };
 
 async function ensureBook(year, name) {
   year = +year;
@@ -268,7 +290,9 @@ async function ensureBook(year, name) {
   }
   return b;
 }
-const bookName = id => (S.books.find(b => b.id === id) || {}).name || '（未知帳冊）';
+const bookName = id => id ? ((S.books.find(b => b.id === id) || {}).name || '（未知帳冊）') : '';
+/* 取消旅行歸屬時，紀錄要回到該年的帳冊 */
+async function untrip(r) { r.tripId = ''; if (!r.bookId || !S.books.find(b => b.id === r.bookId)) r.bookId = (await ensureBook(+r.date.slice(0, 4))).id; }
 const tripOf = id => S.trips.find(t => t.id === id);
 
 function years() {
@@ -278,7 +302,7 @@ function years() {
 function scoped({ignoreMonth = false} = {}) {
   const {year, bookId, month} = S.ui;
   return S.records.filter(r => +r.date.slice(0, 4) === +year
-    && (bookId === 'all' || r.bookId === bookId)
+    && (bookId === 'all' || (bookId.startsWith('trip:') ? r.tripId === bookId.slice(5) : (!r.tripId && r.bookId === bookId)))
     && (ignoreMonth || !month || +r.date.slice(5, 7) === month));
 }
 
@@ -288,9 +312,13 @@ function renderHeader() {
   if (!ys.includes(+S.ui.year)) S.ui.year = ys[0];
   $('#selYear').innerHTML = ys.map(y => `<option value="${y}" ${+y === +S.ui.year ? 'selected' : ''}>${y} 年</option>`).join('');
   const bs = S.books.filter(b => +b.year === +S.ui.year);
-  if (S.ui.bookId !== 'all' && !bs.find(b => b.id === S.ui.bookId)) S.ui.bookId = 'all';
+  const y = String(S.ui.year);
+  const ts = S.trips.filter(t => (t.start || '').startsWith(y) || (t.end || '').startsWith(y) || S.records.some(r => r.tripId === t.id && r.date.startsWith(y)));
+  const valid = ['all', ...bs.map(b => b.id), ...ts.map(t => 'trip:' + t.id)];
+  if (!valid.includes(S.ui.bookId)) S.ui.bookId = 'all';
   $('#selBook').innerHTML = `<option value="all">全部帳冊</option>` +
     bs.map(b => `<option value="${b.id}" ${b.id === S.ui.bookId ? 'selected' : ''}>${esc(b.name)}</option>`).join('') +
+    (ts.length ? `<optgroup label="旅行">${ts.map(t => `<option value="trip:${t.id}" ${'trip:' + t.id === S.ui.bookId ? 'selected' : ''}>✈ ${esc(t.name)}</option>`).join('')}</optgroup>` : '') +
     `<option value="__new">＋ 新增帳冊…</option>`;
   $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.ui.tab));
 }
@@ -308,8 +336,15 @@ $('#gq').onkeydown = e => { if (e.key === 'Escape') { e.target.value = ''; S.ui.
 $('#gqClr').onclick = () => { $('#gq').value = ''; S.ui.q = ''; render(); };
 $('#fab').onclick = () => openRecordForm();
 
+/* 數字太長時自動縮小字級，不截斷 */
+function fitNums() {
+  $$('.sum3 b').forEach(b => { b.style.fontSize = ''; let f = 19; while (b.scrollWidth > b.clientWidth && f > 11) { f -= 1; b.style.fontSize = f + 'px'; } });
+}
+window.addEventListener('resize', () => fitNums());
 function render() {
+  setTimeout(fitNums, 0);
   renderHeader(); saveUI();
+  $$('body > .mask').forEach(m => m._refresh && m._refresh());
   const v = $('#view');
   $('#gqClr').style.display = S.ui.q ? '' : 'none';
   if (S.ui.q.trim()) { $$('#tabs button').forEach(b => b.classList.remove('on')); $('#fab').style.display = ''; return renderSearch(v); }
@@ -326,17 +361,36 @@ function recHTML(r) {
     ${r.photo ? `<div class="thumbbox" data-photo="${r.id}" title="點一下放大照片"><img class="thumb" src="${r.photo}" alt="">${(r.photos || []).length ? `<span style="position:absolute;right:-4px;bottom:-4px;font-size:10px;background:var(--accent);color:#fff;border-radius:6px;padding:0 4px">${r.photos.length + 1}</span>` : ''}</div>` : `<div class="dot" style="background:${colorOf(r.category)}">${esc((r.category || '?').slice(0, 1))}</div>`}
     <div class="mid">
       <div class="t">${esc(title)}</div>
-      <div class="small muted">${esc(r.category)}${r.payment ? ' · ' + esc(r.payment) : ''}${S.ui.bookId === 'all' ? `<span class="tag">${esc(bookName(r.bookId))}</span>` : ''}${t ? `<span class="tag">✈ ${esc(t.name)}</span>` : ''}${r.extra && Object.keys(r.extra).length ? '<span class="tag">匯入</span>' : ''}</div>
+      <div class="small muted">${esc(r.category)}${r.payment ? ' · ' + esc(r.payment) : ''}${t ? `<span class="tag">✈ ${esc(t.name)}</span>` : ''}${r.extra && Object.keys(r.extra).length ? '<span class="tag">匯入</span>' : ''}</div>
     </div>
     <div class="amt ${r.type === 'income' ? 'inc' : 'exp'}">
       ${r.type === 'income' ? '+' : '−'}${fmt(base(r))}
       ${foreign ? `<div class="small muted" style="font-weight:400">${esc(r.currency)} ${fmt(r.amount)}</div>` : ''}
     </div></div>`;
 }
+/* 左右滑動手勢（從可橫向捲動的區塊開始的滑動不算） */
+function addSwipe(el, fn) {
+  let x0 = null, y0 = null;
+  el.addEventListener('touchstart', e => { if (e.touches.length > 1 || e.target.closest('.scrollx, input, select, textarea')) { x0 = null; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, {passive: true});
+  el.addEventListener('touchend', e => {
+    if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) fn(dx < 0 ? 1 : -1);
+  });
+}
+/* 明細：有選月份時切換月份（可跨年），在「全年」時切換年份 */
+function listShift(d) {
+  const ys = years(), minY = Math.min(...ys), maxY = Math.max(...ys);
+  let y = +S.ui.year, m = S.ui.month;
+  if (!m) y += d; else { m += d; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; } }
+  if (y < minY || y > maxY) { toast(d > 0 ? '已經是最後一個月' : '已經是最早的月份'); return; }
+  if (y !== +S.ui.year) S.ui.bookId = String(S.ui.bookId).startsWith('trip:') ? S.ui.bookId : 'all';
+  S.ui.year = y; S.ui.month = m; S._listLimit = 0; S._slide = d; render();
+  window.scrollTo({top: 0});
+}
 /* 收支統計是否納入旅行帳目（預設不納入） */
-const forStats = arr => S.ui.incTrips ? arr : arr.filter(r => !r.tripId);
+const forStats = arr => S.ui.incTrips || String(S.ui.bookId).startsWith('trip:') ? arr : arr.filter(r => !r.tripId);
 const tripNote = arr => {
-  const n = arr.filter(r => r.tripId).length; if (!n && !S.ui.incTrips) return '';
+  const n = arr.filter(r => r.tripId).length; if (String(S.ui.bookId).startsWith('trip:') || (!n && !S.ui.incTrips)) return '';
   return `<div class="tripnote">✈ ${S.ui.incTrips ? `已納入旅行帳目 ${n} 筆` : `不含旅行帳目 ${n} 筆`}　<a data-inctrips="1">${S.ui.incTrips ? '改為不納入' : '改為納入'}</a></div>`;
 };
 document.addEventListener('click', e => { if (e.target.dataset && e.target.dataset.inctrips) { S.ui.incTrips = !S.ui.incTrips; render(); } });
@@ -354,7 +408,8 @@ function renderList(v) {
       <div><span class="small muted">支出</span><b class="exp">${fmtI(exp)}</b></div>
       <div><span class="small muted">結餘</span><b>${fmtI(inc - exp)}</b></div>
     </div>${tripNote(rs)}
-    <div class="scrollx" style="margin-top:12px"><div class="chips" id="months">
+    <div class="small muted" style="text-align:center;margin-top:10px">${S.ui.year} 年${S.ui.month ? ` ${S.ui.month} 月` : '・全年'}　<span style="opacity:.7">← 左右滑動切換${S.ui.month ? '月份' : '年份'} →</span></div>
+    <div class="scrollx" style="margin-top:8px"><div class="chips" id="months">
       <span class="chip ${!S.ui.month ? 'on' : ''}" data-m="0">全年</span>
       ${Array.from({length: 12}, (_, i) => i + 1).map(m => `<span class="chip ${S.ui.month === m ? 'on' : ''}" data-m="${m}" style="${months.has(m) ? '' : 'opacity:.45'}">${m}月</span>`).join('')}
     </div></div>
@@ -378,6 +433,9 @@ function renderList(v) {
   }
   v.innerHTML = html;
   $('#months').onclick = e => { const c = e.target.closest('.chip'); if (c) { S.ui.month = +c.dataset.m; S._listLimit = 0; render(); } };
+  const on = $('#months .chip.on'); if (on) on.scrollIntoView({block: 'nearest', inline: 'center'});
+  if (S._slide) { v.classList.remove('slide-l', 'slide-r'); void v.offsetWidth; v.classList.add(S._slide > 0 ? 'slide-l' : 'slide-r'); S._slide = 0; }
+
   v.onclick = e => {
     const r = e.target.closest('.rec'); if (r) openRecordForm(S.records.find(x => x.id === r.dataset.id));
     if (e.target.id === 'more') { S._listLimit = (S._listLimit || 120) + 200; render(); }
@@ -552,7 +610,9 @@ function chipPicker(el, {items, value, onPick, onAdd, placeholder = '', allowNon
 function openRecordForm(rec, preset = {}) {
   const isNew = !rec;
   const st = S.settings;
-  const defBook = S.ui.bookId !== 'all' ? S.ui.bookId : (S.books.find(b => +b.year === +S.ui.year) || S.books[0]).id;
+  const viewTrip = String(S.ui.bookId).startsWith('trip:') ? S.ui.bookId.slice(5) : '';
+  const defBook = S.ui.bookId !== 'all' && !viewTrip ? S.ui.bookId : (S.books.find(b => +b.year === +S.ui.year) || S.books[0]).id;
+  if (!rec && viewTrip && !preset.tripId) preset = {...preset, tripId: viewTrip};
   const defDate = +S.ui.year === new Date().getFullYear() ? today() : `${S.ui.year}-12-31`;
   const f = rec ? structuredClone(rec) : Object.assign({
     type: 'expense', amount: '', currency: st.baseCur, rate: 1, category: '', date: defDate,
@@ -572,7 +632,7 @@ function openRecordForm(rec, preset = {}) {
     <div class="field"><label>付款方式</label><div class="chips" id="fPays"></div></div>
     <div class="grid2">
       <div class="field"><label>日期</label><input id="fDate" type="date" value="${esc(f.date)}"></div>
-      <div class="field"><label>帳冊</label><select id="fBook"></select></div>
+      <div class="field" id="fBookF"><label>帳冊</label><select id="fBook"></select></div>
       <div class="field"><label>旅行（選填）</label><select id="fTrip"></select></div>
     </div>
     <div class="field"><label>照片</label>
@@ -642,8 +702,10 @@ function openRecordForm(rec, preset = {}) {
     f.rate = f.currency === st.baseCur ? 1 : (t && t.currency === f.currency ? t.rate : (st.rates[f.currency] || 1));
     $('#fRate', m).value = f.rate; drawRate();
   };
+  const drawBook = () => { $('#fBookF', m).style.display = f.tripId ? 'none' : ''; };
+  drawBook();
   $('#fTrip', m).onchange = e => {
-    f.tripId = e.target.value; const t = tripOf(f.tripId);
+    f.tripId = e.target.value; drawBook(); const t = tripOf(f.tripId);
     if (t) { f.currency = t.currency; f.rate = t.rate; $('#fCur', m).value = t.currency; $('#fRate', m).value = t.rate; drawRate(); }
   };
   const noteI = $('#fNote', m);
@@ -702,7 +764,8 @@ function openRecordForm(rec, preset = {}) {
   $('#fCancel', m).onclick = () => m.remove();
   async function save(asNew) {
     f.photo = pics[0] || null; f.photos = pics.slice(1);
-    f.date = $('#fDate', m).value; f.bookId = $('#fBook', m).value; f.note = noteI.value.trim();
+    f.date = $('#fDate', m).value; f.note = noteI.value.trim();
+    f.bookId = f.tripId ? '' : ($('#fBook', m).value || (f.date ? (await ensureBook(+f.date.slice(0, 4))).id : ''));   // 旅行帳目不屬於帳冊
     f.amount = parseFloat(f.amount); f.rate = f.currency === st.baseCur ? 1 : parseFloat(f.rate);
     if (!(f.amount >= 0) || $('#fAmt', m).value === '') { toast('請輸入金額'); $('#fAmt', m).focus(); return; }
     if (!f.date) { toast('請選擇日期'); return; }
@@ -761,8 +824,9 @@ function barsSVG(periods) {
   let line = '';
   periods.forEach((p, i) => {
     const x = left + i * slot + slot / 2;
-    g += `<rect x="${x - bw - 1}" y="${y(p.inc)}" width="${bw}" height="${Math.max(0, y(0) - y(p.inc))}" rx="4" fill="#6F9873"><title>${esc(p.label)} 收入 ${fmt(p.inc)}</title></rect>
-          <rect x="${x + 1}" y="${y(p.exp)}" width="${bw}" height="${Math.max(0, y(0) - y(p.exp))}" rx="4" fill="#C27660"><title>${esc(p.label)} 支出 ${fmt(p.exp)}</title></rect>`;
+    g += `<rect x="${x - slot / 2}" y="${top}" width="${slot}" height="${ph}" fill="transparent" class="drill" data-drill="per" data-k="${esc(p.k)}" style="cursor:pointer"><title>${esc(p.label)}：點一下看明細</title></rect>
+          <rect pointer-events="none" x="${x - bw - 1}" y="${y(p.inc)}" width="${bw}" height="${Math.max(0, y(0) - y(p.inc))}" rx="4" fill="#6F9873"><title>${esc(p.label)} 收入 ${fmt(p.inc)}</title></rect>
+          <rect pointer-events="none" x="${x + 1}" y="${y(p.exp)}" width="${bw}" height="${Math.max(0, y(0) - y(p.exp))}" rx="4" fill="#C27660"><title>${esc(p.label)} 支出 ${fmt(p.exp)}</title></rect>`;
     if (n <= 40 || i % Math.ceil(n / 30) === 0) g += `<text x="${x}" y="${H - bottom + 16}" text-anchor="middle" font-size="10.5" fill="#9A8C7D">${esc(p.short || p.label)}</text>`;
     const net = p.inc - p.exp, ny = Math.min(H - bottom, Math.max(top, y(Math.max(net, 0))));
     line += `${i ? 'L' : 'M'}${x},${net >= 0 ? ny : y(0)}`;
@@ -784,14 +848,76 @@ function periodKey(date, unit) {
   if (unit === 'quarter') { const q = Math.ceil(mo / 3); return {k: `${y}-Q${q}`, label: `${y} Q${q}`, short: `Q${q}`}; }
   return {k: String(y), label: `${y} 年`, short: String(y)};
 }
-function renderStats(v) {
+function statsScope() { return scoped(); }
+/* 統計細項：點類別／期間／付款方式，列出對應的紀錄 */
+function openDrill(kind, key) {
   const {unit, statType} = S.ui;
-  const rsAll = unit === 'year'
-    ? S.records.filter(r => S.ui.bookId === 'all' || r.bookId === S.ui.bookId)
-    : scoped();
-  const rsYear = forStats(rsAll);
-  const scopeLabel = unit === 'year' ? '所有年份' : `${S.ui.year} 年${S.ui.month ? ' ' + S.ui.month + ' 月' : ''}`;
-  const typed = rsYear.filter(r => (r.type === 'income') === (statType === 'income'));
+  const DT = {cat: '類別', pay: '付款方式', per: '期間'};
+  const sel = {sort: 'date', sub: ''};
+  const pick = () => forStats(statsScope()).filter(r =>
+    kind === 'per' ? periodKey(r.date, unit).k === key
+      : ((r.type === 'income') === (statType === 'income')) && (kind === 'cat' ? (r.category || '未分類') === key : (r.payment || '未填') === key));
+  const first = kind === 'per' ? pick()[0] : null;
+  const title = first ? periodKey(first.date, unit).label : key;
+  const m = openModal(`<h2>${esc(title)} <span class="small muted" style="font-weight:400">${DT[kind]}${kind !== 'per' ? (statType === 'income' ? '・收入' : '・支出') : ''}</span></h2><div id="dBody"></div>`);
+  m._refresh = draw;
+  function draw() {
+    let rs = pick();
+    const subKey = r => kind === 'cat' ? ((r.note || '').split(/[\s：:、,，\n]/)[0] || '（無備註）') : (r.category || '未分類');
+    const subs = {}; rs.forEach(r => { const k = subKey(r); subs[k] = subs[k] || {v: 0, n: 0}; subs[k].v += kind === 'per' && r.type === 'income' ? 0 : base(r); subs[k].n++; });
+    const subList = Object.entries(subs).filter(([, o]) => kind !== 'cat' || o.n >= 2).sort((a, b) => b[1].v - a[1].v || b[1].n - a[1].n);   // 品項只列出現兩次以上的
+    if (sel.sub) rs = rs.filter(r => subKey(r) === sel.sub);
+    rs.sort(sel.sort === 'amt' ? (a, b) => base(b) - base(a) : (a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+    const inc = rs.filter(r => r.type === 'income').reduce((s, r) => s + base(r), 0), exp = rs.filter(r => r.type !== 'income').reduce((s, r) => s + base(r), 0);
+    const days = new Set(rs.map(r => r.date)).size;
+    $('#dBody', m).innerHTML = `
+      <div class="sum3" style="margin-bottom:12px">
+        ${kind === 'per' ? `<div><span class="small muted">收入</span><b class="inc">${fmtI(inc)}</b></div><div><span class="small muted">支出</span><b class="exp">${fmtI(exp)}</b></div><div><span class="small muted">損益</span><b>${fmtI(inc - exp)}</b></div>`
+        : `<div><span class="small muted">合計</span><b class="${statType === 'income' ? 'inc' : 'exp'}">${fmtI(inc + exp)}</b></div><div><span class="small muted">筆數</span><b>${rs.length}</b></div><div><span class="small muted">平均每筆</span><b>${fmtI((inc + exp) / (rs.length || 1))}</b></div>`}
+      </div>
+      ${subList.length > (kind === 'cat' ? 0 : 1) ? `<div class="lbl">${kind === 'cat' ? '依品項（備註第一個詞）' : '依類別'}篩選</div><div class="scrollx" style="margin-bottom:10px"><div class="chips" id="dSub">
+        <span class="chip ${!sel.sub ? 'on' : ''}" data-s="">全部 ${pick().length}</span>
+        ${subList.slice(0, 30).map(([k, o]) => `<span class="chip ${sel.sub === k ? 'on' : ''}" data-s="${esc(k)}">${esc(k)} <span class="${sel.sub === k ? '' : 'muted'}" style="font-size:12px">${o.n}・${fmtI(o.v)}</span></span>`).join('')}</div></div>` : ''}
+      <div class="row" style="margin-bottom:8px"><span class="small muted" style="flex:1">${rs.length} 筆・${days} 天${S.ui.incTrips ? '' : '・不含旅行帳目'}</span>
+        <div class="seg" id="dSort" style="font-size:13px"><button class="n ${sel.sort === 'date' ? 'on' : ''}" data-v="date">依日期</button><button class="n ${sel.sort === 'amt' ? 'on' : ''}" data-v="amt">依金額</button></div></div>
+      <div class="card" style="padding:4px 10px">${rs.length ? rs.slice(0, 500).map(r => recHTML(r).replace('<div class="t">', `<div class="t"><span class="small muted">${r.date.slice(5).replace(/-/g, '/')}</span>　`)).join('') : '<div class="empty">沒有紀錄</div>'}</div>
+      ${rs.length > 500 ? `<div class="small muted">僅顯示前 500 筆</div>` : ''}
+      <div class="actions"><button class="btn" id="dClose">關閉</button></div>`;
+    $('#dClose', m).onclick = () => m.remove();
+  }
+  m.onclick = e => {
+    const c = e.target.closest('#dSub .chip'); if (c) { sel.sub = c.dataset.s; return draw(); }
+    const b = e.target.closest('#dSort button'); if (b) { sel.sort = b.dataset.v; return draw(); }
+    const r = e.target.closest('.rec'); if (r) openRecordForm(S.records.find(x => x.id === r.dataset.id));
+  };
+  draw();
+}
+/* 統計期間：月 ↔ 年，左右滑動或按 ‹ › 切換 */
+function statShift(d) {
+  const ys = years(), minY = Math.min(...ys), maxY = Math.max(...ys);
+  if (S.ui.statMode === 'year') { const y = +S.ui.year + d; if (y < minY || y > maxY) return false; S.ui.year = y; S.ui.bookId = 'all'; return true; }
+  let y = +S.ui.year, m = (S.ui.month || 1) + d;
+  if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
+  if (y < minY || y > maxY) return false;
+  if (y !== +S.ui.year) S.ui.bookId = 'all';
+  S.ui.year = y; S.ui.month = m; return true;
+}
+function renderStats(v) {
+  const {statType} = S.ui;
+  if (S.ui.statMode !== 'year') {
+    S.ui.statMode = 'month';
+    if (!S.ui.month) {   // 月模式沒有選月份時：今年用本月，其他年份用最後有資料的月份
+      const now = new Date();
+      const ms = S.records.filter(r => +r.date.slice(0, 4) === +S.ui.year).map(r => +r.date.slice(5, 7));
+      S.ui.month = +S.ui.year === now.getFullYear() ? now.getMonth() + 1 : (ms.length ? Math.max(...ms) : 12);
+    }
+  } else S.ui.month = 0;
+  const rsAll = statsScope();
+  const rs = forStats(rsAll);
+  const label = S.ui.statMode === 'year' ? `${S.ui.year} 年` : `${S.ui.year} 年 ${S.ui.month} 月`;
+  const inc = rs.filter(r => r.type === 'income').reduce((s, r) => s + base(r), 0);
+  const exp = rs.filter(r => r.type !== 'income').reduce((s, r) => s + base(r), 0);
+  const typed = rs.filter(r => (r.type === 'income') === (statType === 'income'));
   const total = typed.reduce((s, r) => s + base(r), 0);
   const byCat = {};
   typed.forEach(r => { const c = r.category || '未分類'; byCat[c] = byCat[c] || {v: 0, n: 0}; byCat[c].v += base(r); byCat[c].n++; });
@@ -799,61 +925,60 @@ function renderStats(v) {
   const byPay = {};
   typed.forEach(r => { const p = r.payment || '未填'; byPay[p] = (byPay[p] || 0) + base(r); });
   const pays = Object.entries(byPay).sort((a, b) => b[1] - a[1]);
-
-  // 時間序列（含空白期間）
-  const map = new Map();
-  rsYear.forEach(r => {
-    const p = periodKey(r.date, unit);
-    const o = map.get(p.k) || {...p, inc: 0, exp: 0, n: 0};
-    if (r.type === 'income') o.inc += base(r); else o.exp += base(r);
-    o.n++; map.set(p.k, o);
-  });
-  if (unit === 'month' && !S.ui.month) for (let m = 1; m <= 12; m++) { const p = periodKey(`${S.ui.year}-${pad(m)}-01`, 'month'); if (!map.has(p.k)) map.set(p.k, {...p, inc: 0, exp: 0, n: 0}); }
-  if (unit === 'quarter') for (let q = 1; q <= 4; q++) { const p = periodKey(`${S.ui.year}-${pad(q * 3)}-01`, 'quarter'); if (!map.has(p.k)) map.set(p.k, {...p, inc: 0, exp: 0, n: 0}); }
-  const periods = [...map.values()].sort((a, b) => a.k.localeCompare(b.k));
-  let cum = 0;
-  periods.forEach(p => { p.net = p.inc - p.exp; cum += p.net; p.cum = cum; });
-  const tInc = periods.reduce((s, p) => s + p.inc, 0), tExp = periods.reduce((s, p) => s + p.exp, 0);
-  const active = periods.filter(p => p.n).length || 1;
+  // 與上一期比較
+  const prev = (() => { const keep = {year: S.ui.year, month: S.ui.month, bookId: S.ui.bookId};
+    if (!statShift(-1)) return null; const p = forStats(statsScope()).filter(r => (r.type === 'income') === (statType === 'income')).reduce((s, r) => s + base(r), 0);
+    Object.assign(S.ui, keep); return p; })();
+  const diff = prev ? (total - prev) / prev * 100 : null;
+  const ys = years();
+  const canPrev = S.ui.statMode === 'year' ? +S.ui.year > Math.min(...ys) : !(+S.ui.year === Math.min(...ys) && S.ui.month === 1);
+  const canNext = S.ui.statMode === 'year' ? +S.ui.year < Math.max(...ys) : !(+S.ui.year === Math.max(...ys) && S.ui.month === 12);
 
   v.innerHTML = `
+  <div id="swipeArea">
   <div class="card">
-    <div class="row">
-      <div class="seg" style="flex:1;min-width:200px" id="sType"><button class="e" data-v="expense">支出分析</button><button class="i" data-v="income">收入分析</button></div>
-      <select id="sMonth" style="width:auto">${['全年', ...Array.from({length: 12}, (_, i) => (i + 1) + ' 月')].map((t, i) => `<option value="${i}" ${S.ui.month === i ? 'selected' : ''}>${t}</option>`).join('')}</select>
+    <div class="row" style="gap:8px">
+      <div class="seg" id="sMode" style="font-size:13.5px"><button class="n" data-v="month">月</button><button class="n" data-v="year">年</button></div>
+      <div class="seg" style="flex:1;min-width:170px" id="sType"><button class="e" data-v="expense">支出</button><button class="i" data-v="income">收入</button></div>
+    </div>
+    <div class="pnav">
+      <button class="pbtn" data-sh="-1" ${canPrev ? '' : 'disabled'}>‹</button>
+      <div class="plabel">${label}<div class="small muted">← 左右滑動切換 →</div></div>
+      <button class="pbtn" data-sh="1" ${canNext ? '' : 'disabled'}>›</button>
+    </div>
+    <div class="sum3">
+      <div><span class="small muted">收入</span><b class="inc">${fmtI(inc)}</b></div>
+      <div><span class="small muted">支出</span><b class="exp">${fmtI(exp)}</b></div>
+      <div><span class="small muted">結餘</span><b class="${inc - exp >= 0 ? '' : 'exp'}">${fmtI(inc - exp)}</b></div>
     </div>${tripNote(rsAll)}
   </div>
   <div class="card">
-    <h3>分類別統計 <span class="small muted">${scopeLabel}</span></h3>
-    ${cats.length ? `<div class="donut-wrap">${donutSVG(cats, statType === 'income' ? '總收入' : '總支出', fmt(total))}
-      <div>${cats.map(c => `<div class="catrow"><span class="sw" style="background:${c.color}"></span>
+    <h3>分類別統計 <span class="small muted sp">${diff === null ? '' : `比上${S.ui.statMode === 'year' ? '年' : '月'} ${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff).toFixed(0)}%`}</span></h3>
+    ${cats.length ? `<div class="donut-wrap">${donutSVG(cats, statType === 'income' ? '總收入' : '總支出', fmtI(total))}
+      <div>${cats.map(c => `<div class="catrow drill" data-drill="cat" data-k="${esc(c.label)}"><span class="sw" style="background:${c.color}"></span>
         <div><div class="row" style="justify-content:space-between"><span>${esc(c.label)} <span class="small muted">${c.n} 筆</span></span><span class="small muted">${(c.value / total * 100).toFixed(1)}%</span></div>
         <div class="bar" style="margin-top:4px"><i style="width:${c.value / cats[0].value * 100}%;background:${c.color}"></i></div></div>
-        <b style="font-variant-numeric:tabular-nums">${fmt(c.value)}</b></div>`).join('')}</div></div>` : '<div class="empty">沒有資料</div>'}
+        <b style="font-variant-numeric:tabular-nums">${fmtI(c.value)} <span class="muted" style="font-weight:400">›</span></b></div>`).join('')}</div></div>
+      <div class="small muted" style="margin-top:8px">點類別可以看細項紀錄</div>` : '<div class="empty">這段期間沒有' + (statType === 'income' ? '收入' : '支出') + '</div>'}
   </div>
-  <div class="card">
-    <h3>損益整理
-      <div class="seg sp" id="sUnit" style="font-size:13px">${[['day', '日'], ['week', '週'], ['month', '月'], ['quarter', '季'], ['year', '年']].map(([k, t]) => `<button class="n" data-v="${k}">${t}</button>`).join('')}</div></h3>
-    <div class="sum3" style="margin-bottom:12px">
-      <div><span class="small muted">收入</span><b class="inc">${fmtI(tInc)}</b></div>
-      <div><span class="small muted">支出</span><b class="exp">${fmtI(tExp)}</b></div>
-      <div><span class="small muted">損益 · 每${({day: '日', week: '週', month: '月', quarter: '季', year: '年'})[unit]}平均支出 ${fmtI(tExp / active)}</span><b class="${tInc - tExp >= 0 ? 'inc' : 'exp'}">${fmtI(tInc - tExp)}</b></div>
-    </div>
-    ${periods.length ? barsSVG(periods) : '<div class="empty">沒有資料</div>'}
-    ${periods.length ? `<div class="tbl-wrap" style="margin-top:12px"><table>
-      <thead><tr><th>期間</th><th>收入</th><th>支出</th><th>損益</th><th>累計</th><th>筆數</th></tr></thead>
-      <tbody>${[...periods].reverse().map(p => `<tr><td>${esc(p.label)}</td><td class="inc">${fmt(p.inc)}</td><td class="exp">${fmt(p.exp)}</td>
-        <td class="${p.net >= 0 ? 'inc' : 'exp'}">${p.net >= 0 ? '+' : ''}${fmt(p.net)}</td><td>${fmt(p.cum)}</td><td>${p.n}</td></tr>`).join('')}</tbody></table></div>` : ''}
-    <div class="small muted" style="margin-top:8px">${unit === 'year' ? '「年」會跨所有年份比較；' : ''}金額皆換算為 ${esc(S.settings.baseCur)}。</div>
-  </div>
-  ${pays.length ? `<div class="card"><h3>付款方式</h3>${pays.map(([p, val]) => `<div class="catrow"><span class="sw" style="background:#D4A373"></span>
+  ${pays.length ? `<div class="card"><h3>付款方式</h3>${pays.map(([p, val]) => `<div class="catrow drill" data-drill="pay" data-k="${esc(p)}"><span class="sw" style="background:#D4A373"></span>
      <div><div class="row" style="justify-content:space-between"><span>${esc(p)}</span><span class="small muted">${(val / total * 100).toFixed(1)}%</span></div>
-     <div class="bar" style="margin-top:4px"><i style="width:${val / pays[0][1] * 100}%;background:#D4A373"></i></div></div><b>${fmt(val)}</b></div>`).join('')}</div>` : ''}`;
+     <div class="bar" style="margin-top:4px"><i style="width:${val / pays[0][1] * 100}%;background:#D4A373"></i></div></div><b>${fmtI(val)} <span class="muted" style="font-weight:400">›</span></b></div>`).join('')}</div>` : ''}
+  </div>`;
   $$('#sType button').forEach(b => b.classList.toggle('on', b.dataset.v === statType));
-  $$('#sUnit button').forEach(b => b.classList.toggle('on', b.dataset.v === unit));
+  $$('#sMode button').forEach(b => b.classList.toggle('on', b.dataset.v === S.ui.statMode));
   $('#sType').onclick = e => { const b = e.target.closest('button'); if (b) { S.ui.statType = b.dataset.v; render(); } };
-  $('#sUnit').onclick = e => { const b = e.target.closest('button'); if (b) { S.ui.unit = b.dataset.v; render(); } };
-  $('#sMonth').onchange = e => { S.ui.month = +e.target.value; if (S.ui.month && ['month', 'quarter', 'year'].includes(S.ui.unit)) S.ui.unit = 'day'; render(); };
+  $('#sMode').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.v !== S.ui.statMode) { S.ui.statMode = b.dataset.v; S.ui.month = 0; render(); } };
+  const shift = (d) => { if (!statShift(d)) return; S._slide = d; render(); };
+  S._statShift = shift;
+  v.onclick = e => {
+    const sh = e.target.closest('[data-sh]'); if (sh) return shift(+sh.dataset.sh);
+    const d = e.target.closest('[data-drill]'); if (d) openDrill(d.dataset.drill, d.dataset.k);
+  };
+  // 左右滑動
+  const area = $('#swipeArea');
+  if (S._slide) { area.classList.add(S._slide > 0 ? 'slide-l' : 'slide-r'); S._slide = 0; }
+
 }
 
 /* ================= 旅行 ================= */
@@ -867,26 +992,28 @@ function tripStats(t) {
   const byCat = {}; exp.forEach(r => byCat[r.category] = (byCat[r.category] || 0) + toTrip(r));
   const byCur = {}; exp.forEach(r => byCur[r.currency] = (byCur[r.currency] || 0) + (+r.amount));
   const days = t.start && t.end ? Math.max(1, Math.round((new Date(t.end) - new Date(t.start)) / 864e5) + 1) : 0;
-  return {rs, spent, spentBase, refund, byCat, byCur, days};
+  const incN = rs.filter(r => r.type === 'income').length;
+  return {rs, spent, spentBase, refund, incN, byCat, byCur, days};
 }
 function renderTrips(v) {
   const st = S.settings;
   const list = [...S.trips].sort((a, b) => (b.start || '').localeCompare(a.start || ''));
   v.innerHTML = `<div class="row" style="margin-bottom:12px"><span class="muted small" style="flex:1">每趟旅行可設定幣別、匯率與預算；記帳時選擇該旅行即可用當地幣別記錄。</span><button class="btn pri" id="tNew">＋ 新增旅行</button></div>` +
     (list.length ? list.map(t => {
-      const s = tripStats(t); const net = s.spent - s.refund;
+      const s = tripStats(t); const net = s.spent;   // 旅行花費只算支出；收入另外列出，不互相抵銷
       const pct = t.budget ? Math.min(100, net / t.budget * 100) : 0;
       const over = t.budget && net > t.budget;
       return `<div class="card trip" data-id="${t.id}">
-        <div class="hd"><h3 style="margin:0">✈ ${esc(t.name)}</h3><span class="small muted">${t.start ? esc(t.start) + ' ~ ' + esc(t.end || '') : ''}${s.days ? `（${s.days} 天）` : ''}</span></div>
+        <div class="hd"><h3 style="margin:0">✈ ${esc(t.name)}</h3><span class="small muted">${s.rs.length} 筆</span></div>
         <div class="row" style="margin:12px 0 6px;align-items:baseline">
-          <span class="big ${over ? 'exp' : ''}">${esc(t.currency)} ${fmt(net)}</span>
-          <span class="muted">/ 預算 ${fmt(t.budget || 0)}</span>
-          <span class="small muted" style="margin-left:auto">≈ ${esc(st.baseCur)} ${fmt(s.spentBase)}</span>
+          <span class="big ${over ? 'exp' : ''}">${esc(t.currency)} ${fmtI(net)}</span>
+          <span class="muted">${t.budget ? `/ 預算 ${fmtI(t.budget)}` : '支出'}</span>
+          <span class="small muted" style="margin-left:auto">≈ ${esc(st.baseCur)} ${fmtI(s.spentBase)}</span>
         </div>
+        ${s.refund ? `<div class="tripinc" data-act="incs">這趟另有 <b class="inc">${s.incN} 筆收入 ${esc(t.currency)} ${fmtI(s.refund)}</b>（未從花費中扣除）<span class="muted"> · 查看 ›</span></div>` : ''}
         ${t.budget ? `<div class="bar"><i style="width:${pct}%;background:${over ? 'var(--exp)' : 'var(--accent)'}"></i></div>
-        <div class="small muted" style="margin-top:6px">${over ? `已超支 ${t.currency} ${fmt(net - t.budget)}` : `剩餘 ${t.currency} ${fmt(t.budget - net)}（≈ ${st.baseCur} ${fmt((t.budget - net) * t.rate)}）`}${s.days ? ` · 日均 ${fmt(net / s.days)}` : ''}${s.refund ? ` · 退款／收入 ${fmt(s.refund)}` : ''}</div>` : ''}
-        ${Object.keys(s.byCat).length ? `<div class="chips" style="margin-top:12px">${Object.entries(s.byCat).sort((a, b) => b[1] - a[1]).map(([c, val]) => `<span class="chip" style="cursor:default"><i style="width:8px;height:8px;border-radius:3px;background:${colorOf(c)}"></i>${esc(c)} ${fmt(val)}</span>`).join('')}</div>` : ''}
+        <div class="small muted" style="margin-top:6px">${over ? `已超支 ${t.currency} ${fmt(net - t.budget)}` : `剩餘 ${t.currency} ${fmt(t.budget - net)}（≈ ${st.baseCur} ${fmt((t.budget - net) * t.rate)}）`}</div>` : ''}
+        ${Object.keys(s.byCat).length ? `<div class="chips" style="margin-top:12px">${Object.entries(s.byCat).sort((a, b) => b[1] - a[1]).map(([c, val]) => `<span class="chip" style="cursor:default"><i style="width:8px;height:8px;border-radius:3px;background:${colorOf(c)}"></i>${esc(c)} ${fmtI(val)}</span>`).join('')}</div>` : ''}
         ${Object.keys(s.byCur).length > 1 ? `<div class="small muted" style="margin-top:8px">各幣別實付：${Object.entries(s.byCur).map(([c, val]) => `${esc(c)} ${fmt(val)}`).join('、')}</div>` : ''}
         <div class="row" style="margin-top:14px"><button class="btn pri sm" data-act="add">記一筆</button><button class="btn sm" data-act="list">明細（${s.rs.length}）</button><button class="btn sm" data-act="assign">把既有紀錄歸入</button><button class="btn sm" data-act="edit">編輯</button></div>
       </div>`;
@@ -900,6 +1027,21 @@ function renderTrips(v) {
       openRecordForm(null, {tripId: t.id, date: t.start && today() < t.start ? t.start : today(), bookId: yb ? yb.id : undefined});
     }
     if (b.dataset.act === 'edit') openTripForm(t);
+    if (b.dataset.act === 'incs') {
+      const incs = S.records.filter(r => r.tripId === t.id && r.type === 'income').sort((a, b) => a.date.localeCompare(b.date));
+      const m = openModal(`<h2>${esc(t.name)} 的收入紀錄</h2>
+        <div class="small muted" style="margin-bottom:10px">這些是歸入這趟旅行、但類型為「收入」的紀錄。如果是誤歸入（例如薪水、換匯），按「移出旅行」即可；如果其實是支出，點紀錄改成支出。</div>
+        <div class="card" style="padding:4px 10px">${incs.map(r => `<div class="row" style="flex-wrap:nowrap;gap:6px">${recHTML(r).replace('<div class="t">', `<div class="t"><span class="small muted">${r.date.slice(5)}</span>　`)}<button class="btn sm" data-out="${r.id}" style="flex:none">移出旅行</button></div>`).join('')}</div>
+        <div class="actions"><button class="btn" id="iOutAll">全部移出</button><button class="btn pri" id="iClose">完成</button></div>`);
+      m._refresh = () => {};
+      const out = async ids => { const rs = S.records.filter(r => ids.includes(r.id)); for (const r of rs) await untrip(r); await putMany('records', rs); };
+      m.onclick = async e => {
+        if (e.target.dataset.out) { await out([e.target.dataset.out]); e.target.closest('.row').remove(); toast('已移出旅行'); render(); return; }
+        if (e.target.id === 'iOutAll') { await out(incs.map(r => r.id)); m.remove(); toast(`已移出 ${incs.length} 筆`); render(); return; }
+        if (e.target.id === 'iClose') { m.remove(); return; }
+        const r = e.target.closest('.rec'); if (r) openRecordForm(S.records.find(x => x.id === r.dataset.id));
+      };
+    }
     if (b.dataset.act === 'assign') openTripAssign(t);
     if (b.dataset.act === 'list') {
       const s = tripStats(t);
@@ -916,21 +1058,21 @@ function openTripAssign(t) {
     .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0));
   const sources = [...new Set(inRange.map(r => r.source || '手動記帳'))];
   const guessSrc = sources.find(x => x.includes(t.name)) || '';
-  const sel = new Set(inRange.filter(r => r.tripId === t.id || (guessSrc && r.source === guessSrc)).map(r => r.id));
+  const sel = new Set(inRange.filter(r => r.tripId === t.id || (guessSrc && r.source === guessSrc && r.type !== 'income')).map(r => r.id));
   const m = openModal(`<h2>歸入「${esc(t.name)}」</h2>
     <div class="small muted" style="margin-bottom:10px">${esc(t.start)} ～ ${esc(t.end)} 期間共 ${inRange.length} 筆尚未屬於其他旅行的紀錄。勾選的會歸入這趟旅行，並從日常收支統計中排除。</div>
     ${sources.length > 1 ? `<div class="chips" style="margin-bottom:10px">${sources.map(x => `<span class="chip" data-src="${esc(x)}">全選：${esc(x)}</span>`).join('')}</div>` : ''}
-    <div class="row" style="margin-bottom:8px"><button class="btn sm" id="aAll">全選</button><button class="btn sm" id="aNone">全不選</button><span class="small muted" id="aCnt" style="margin-left:auto"></span></div>
+    <div class="row" style="margin-bottom:8px"><button class="btn sm" id="aAll">全選支出</button><button class="btn sm" id="aNone">全不選</button><span class="small muted" id="aCnt" style="margin-left:auto"></span></div>
     <div class="card" style="padding:4px 10px;max-height:45vh;overflow:auto">${inRange.map(r => `<label class="row" style="padding:7px 2px;border-bottom:1px dashed var(--line);gap:10px;flex-wrap:nowrap;cursor:pointer">
       <input type="checkbox" data-id="${r.id}" ${sel.has(r.id) ? 'checked' : ''}>
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="small muted">${r.date.slice(5)}</span> ${esc(r.note || r.category)} <span class="small muted">· ${esc(r.category)}</span></span>
-      <span class="small" style="white-space:nowrap">${esc(r.currency)} ${fmt(r.amount)}</span></label>`).join('') || '<div class="empty">期間內沒有紀錄</div>'}</div>
+      <span class="small ${r.type === 'income' ? 'inc' : ''}" style="white-space:nowrap">${r.type === 'income' ? '收入 +' : ''}${esc(r.currency)} ${fmt(r.amount)}</span></label>`).join('') || '<div class="empty">期間內沒有紀錄</div>'}</div>
     <label class="row small" style="gap:6px;margin-top:10px"><input type="checkbox" id="aCur"> 這些紀錄的金額其實是 ${esc(t.currency)}（目前記成 ${esc(st.baseCur)}），改為 ${esc(t.currency)}，匯率 ${t.rate}</label>
     <div class="actions"><button class="btn" id="aCancel">取消</button><button class="btn pri" id="aSave">套用</button></div>`);
   const boxes = () => $$('input[data-id]', m);
   const cnt = () => $('#aCnt', m).textContent = `已勾選 ${boxes().filter(x => x.checked).length} 筆`;
   cnt(); m.onchange = cnt;
-  $('#aAll', m).onclick = () => { boxes().forEach(x => x.checked = true); cnt(); };
+  $('#aAll', m).onclick = () => { boxes().forEach(x => x.checked = S.records.find(y => y.id === x.dataset.id).type !== 'income'); cnt(); };
   $('#aNone', m).onclick = () => { boxes().forEach(x => x.checked = false); cnt(); };
   m.addEventListener('click', e => { const c = e.target.closest('[data-src]'); if (!c) return;
     boxes().forEach(x => { const r = S.records.find(y => y.id === x.dataset.id); if ((r.source || '手動記帳') === c.dataset.src) x.checked = true; }); cnt(); });
@@ -940,11 +1082,12 @@ function openTripAssign(t) {
     boxes().forEach(x => {
       const r = S.records.find(y => y.id === x.dataset.id);
       if (x.checked) {
-        r.tripId = t.id;
+        r.tripId = t.id; r.bookId = '';
         if (fixCur && r.currency === st.baseCur) { r.currency = t.currency; r.rate = t.rate; }
         changed.push(r);
-      } else if (r.tripId === t.id) { r.tripId = ''; changed.push(r); }
+      } else if (r.tripId === t.id) { changed.push(r); }
     });
+    for (const r of changed) if (r.tripId === t.id && !boxes().find(x => x.dataset.id === r.id).checked) await untrip(r);
     await putMany('records', changed); m.remove(); toast(`已更新 ${changed.length} 筆`); render();
   };
 }
@@ -976,7 +1119,7 @@ function openTripForm(t) {
   };
   if (!isNew) $('#tDel', m).onclick = async () => {
     if (!confirm('刪除旅行？（相關紀錄會保留，只會取消與旅行的關聯）')) return;
-    const rs = S.records.filter(r => r.tripId === t.id); rs.forEach(r => r.tripId = '');
+    const rs = S.records.filter(r => r.tripId === t.id); for (const r of rs) await untrip(r);
     await putMany('records', rs); await del('trips', t.id); S.trips = S.trips.filter(x => x.id !== t.id); m.remove(); render();
   };
 }
@@ -1582,8 +1725,9 @@ async function doImport(items) {
   } else if (o.trip) tripId = o.trip;
   for (const [i, b] of items.entries()) {
     const r = b.rec, y = +r.date.slice(0, 4);
-    let book;
-    if (IMP.opts.bookMode === 'auto') book = await ensureBook(y);
+    let book = {id: ''};   // 歸入旅行的紀錄不屬於帳冊
+    if (tripId) {}
+    else if (IMP.opts.bookMode === 'auto') book = await ensureBook(y);
     else if (IMP.opts.bookMode === 'col') book = await ensureBook(y, r.bookName || undefined);
     else book = S.books.find(x => x.id === IMP.opts.bookMode);
     const list = r.type === 'income' ? st.incomeCats : st.expenseCats;
@@ -1634,11 +1778,42 @@ async function restoreBackup(data) {
   toast('備份已還原'); S.ui.tab = 'list'; render();
 }
 
+/* ================= 拖曳排序（滑鼠與手指皆可）================= */
+function makeSortable(list, onDone) {
+  let drag = null, startOrder = '';
+  const items = () => $$('.sortable', list);
+  list.addEventListener('pointerdown', e => {
+    const g = e.target.closest('.grip'); if (!g) return;
+    e.preventDefault();
+    drag = g.closest('.sortable'); startOrder = items().map(x => x.dataset.v).join('\u0001');
+    drag.classList.add('dragging'); list.classList.add('sorting');
+    g.setPointerCapture(e.pointerId);
+  });
+  list.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (e.clientY < 70) window.scrollBy(0, -14); else if (e.clientY > innerHeight - 70) window.scrollBy(0, 14);   // 拖到邊緣自動捲動
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.sortable');
+    if (!over || over === drag || over.parentNode !== list) return;
+    const r = over.getBoundingClientRect();
+    const sameRow = e.clientY > r.top && e.clientY < r.bottom;
+    const after = sameRow ? e.clientX > r.left + r.width / 2 : e.clientY > r.top + r.height / 2;
+    list.insertBefore(drag, after ? over.nextSibling : over);
+    if (navigator.vibrate) navigator.vibrate(5);
+  });
+  const end = () => {
+    if (!drag) return;
+    drag.classList.remove('dragging'); list.classList.remove('sorting'); drag = null;
+    const order = items().map(x => x.dataset.v);
+    if (order.join('\u0001') !== startOrder) onDone(order);
+  };
+  list.addEventListener('pointerup', end); list.addEventListener('pointercancel', end);
+}
+
 /* ================= 設定 ================= */
 function renderSettings(v) {
   const st = S.settings;
   const usage = S.records.reduce((s, r) => s + (r.photo ? r.photo.length : 0), 0);
-  const chipList = key => `<div class="chips" data-list="${key}">${st[key].map((c, i) => `<span class="chip" style="cursor:default">${esc(c)}<span class="x" data-del="${i}">✕</span></span>`).join('')}<span class="chip" data-add="1">＋ 新增</span></div>`;
+  const chipList = key => `<div class="chips sortlist" data-list="${key}">${st[key].map((c, i) => `<span class="chip sortable" data-v="${esc(c)}"><span class="grip" title="按住拖曳調整順序">⠿</span>${esc(c)}<span class="x" data-del="${i}">✕</span></span>`).join('')}<span class="chip" data-add="1">＋ 新增</span></div>`;
   const booksByYear = {}; S.books.forEach(b => (booksByYear[b.year] = booksByYear[b.year] || []).push(b));
   v.innerHTML = `
   <div class="card"><h3>帳冊（依年份）<button class="btn sm sp" id="bNew">＋ 新增帳冊</button></h3>
@@ -1647,6 +1822,7 @@ function renderSettings(v) {
         <span style="flex:1">${esc(b.name)} <span class="small muted">${n} 筆</span></span>
         <button class="btn sm" data-bedit="${b.id}">改名／年份</button><button class="btn sm dan" data-bdel="${b.id}">刪除</button></div>`; }).join('')}`).join('')}
   </div>
+  <div class="small muted" style="margin:0 6px 8px">按住 ⠿ 拖曳可以調整順序，記帳時的選項會照這個順序排列。</div>
   <div class="card"><h3>支出類別</h3>${chipList('expenseCats')}</div>
   <div class="card"><h3>收入類別</h3>${chipList('incomeCats')}</div>
   <div class="card"><h3>付款方式</h3>${chipList('payments')}</div>
@@ -1696,6 +1872,7 @@ function renderSettings(v) {
       await ensureBook(new Date().getFullYear()); render();
     }
   };
+  $$('.sortlist', v).forEach(el => makeSortable(el, async order => { st[el.dataset.list] = order; await saveSettings(); toast('已更新順序'); }));
   $('#restoreFile').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try { const d = JSON.parse(await f.text()); if (d.app !== 'mi-ledger') throw new Error('不是米記帳的備份檔'); await restoreBackup(d); }
@@ -1703,6 +1880,13 @@ function renderSettings(v) {
   };
   $('#baseCur').onchange = async e => { st.baseCur = e.target.value; await saveSettings(); render(); };
 }
+
+/* 整頁左右滑動：明細切換月份、統計切換期間 */
+addSwipe(document.querySelector('.wrap'), d => {
+  if (S.ui.q.trim() || document.querySelector('body > .mask, body > .lightbox')) return;
+  if (S.ui.tab === 'list') listShift(d);
+  else if (S.ui.tab === 'stats' && S._statShift) S._statShift(d);
+});
 
 /* ================= 新版本檢查 ================= */
 /* 打開網頁時向 GitHub 取一次最新的 index.html（不走快取），版本不同就提示重新整理 */
