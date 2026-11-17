@@ -25,6 +25,14 @@ header.top{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 select,input[type=text],input[type=number],input[type=date],input[type=search],textarea{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r-s);padding:9px 12px;outline:none;width:100%}
 select:focus,input:focus,textarea:focus{border-color:var(--accent)}
+/* iOS Safari：日期欄預設有最小寬度且置中，會超出容器 */
+input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:42px;text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
+input[type=date]::-webkit-datetime-edit{padding:0}
+.grid2>*,.field{min-width:0}
+.updbar{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:120;background:var(--text);color:var(--bg);
+  border-radius:999px;padding:8px 8px 8px 16px;display:flex;gap:10px;align-items:center;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.2);white-space:nowrap}
+.updbar button{border:0;border-radius:999px;padding:6px 14px;background:var(--accent);color:#fff;cursor:pointer}
 header select{width:auto;min-width:0;max-width:40vw;flex:0 1 auto;padding:8px 10px}
 .brand{white-space:nowrap}
 nav.tabs{display:flex;gap:6px;background:var(--card);padding:5px;border-radius:999px;border:1px solid var(--line);
@@ -78,10 +86,25 @@ mark{background:#F1DFC4;color:inherit;border-radius:4px;padding:0 2px}
 .empty{text-align:center;color:var(--muted);padding:36px 10px}
 /* modal */
 .mask{position:fixed;inset:0;background:rgba(74,64,56,.35);display:flex;align-items:flex-end;justify-content:center;z-index:50;animation:fade .15s}
-.modal{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:24px 24px 0 0;padding:20px}
-@media(min-width:640px){.mask{align-items:center}.modal{border-radius:24px}}
+.modal{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:24px;padding:0 20px 20px;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.mask{align-items:center}
+.modal>h2:first-child{position:sticky;top:0;z-index:3;background:var(--bg);padding:18px 0 12px;display:flex;align-items:center;gap:8px}
+.mclose{margin-left:auto;flex:none;width:36px;height:36px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:16px;cursor:pointer;color:var(--muted)}
+.modal .actions{position:sticky;bottom:0;z-index:3;background:var(--bg);padding:12px 0 2px;margin-top:16px;border-top:1px solid var(--line)}
+body.locked{position:fixed;left:0;right:0;overflow:hidden}
+/* 手機：全螢幕視窗 */
+@media(max-width:639px){
+  .mask{align-items:stretch;background:var(--bg);animation:slideup .2s ease-out}
+  .modal{max-width:none;height:100%;max-height:none;border-radius:0;padding:0 16px}
+  .modal>h2:first-child{padding:calc(14px + env(safe-area-inset-top)) 0 12px;border-bottom:1px solid var(--line);margin:0 -16px 14px;padding-left:16px;padding-right:16px}
+  .modal .actions{padding:12px 0 calc(12px + env(safe-area-inset-bottom));margin-top:20px}
+  input,select,textarea{font-size:16px!important}   /* 避免 iOS 點輸入框時自動放大 */
+  .amtbox input{font-size:24px!important}
+}
+@keyframes slideup{from{transform:translateY(24px);opacity:0}}
 @keyframes fade{from{opacity:0}}
-.modal h2{margin:0 0 14px;font-size:18px}
+.modal h2{margin:0 0 6px;font-size:18px}
 .field{margin-bottom:12px}
 .field>label,.lbl{display:block;font-size:12.5px;color:var(--muted);margin:0 0 5px 4px}
 .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;gap:4px}
@@ -120,6 +143,14 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
 .ok{color:var(--inc)} .bad{color:var(--exp)}
 .lightbox{position:fixed;inset:0;background:rgba(40,34,30,.85);display:grid;place-items:center;z-index:80;cursor:zoom-out}
 .lightbox img{max-width:94vw;max-height:90vh;border-radius:16px}
+.pics{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin-bottom:8px}
+.pics:empty{display:none}
+.pic{position:relative;aspect-ratio:3/4;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--card2)}
+.pic img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;display:block}
+.pic button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:9px;border:0;background:rgba(74,64,56,.65);color:#fff;cursor:pointer}
+.pic .mv{top:auto;bottom:4px;right:4px;left:4px;width:auto;height:24px;font-size:11.5px}
+.pic span{position:absolute;left:4px;top:4px;bottom:auto!important;font-size:11px;background:var(--accent);color:#fff;border-radius:6px;padding:1px 6px}
+.pic span.x{position:absolute;left:4px;bottom:4px;font-size:11px;background:var(--accent);color:#fff;border-radius:6px;padding:1px 6px}
 .thumb{width:34px;height:34px;border-radius:9px;object-fit:cover;flex:none;border:1px solid var(--line)}
 </style>
 </head>
@@ -145,7 +176,7 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
 <button class="fab" id="fab" title="記一筆">＋</button>
 
 <script>
-const APP_VERSION = '1.4（2026-11-17）';
+const APP_VERSION = '1.8（2026-11-17）';
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -280,7 +311,7 @@ function recHTML(r) {
   const foreign = r.currency && r.currency !== S.settings.baseCur;
   const title = r.note || r.category;
   return `<div class="rec" data-id="${r.id}">
-    ${r.photo ? `<img class="thumb" src="${r.photo}" alt="">` : `<div class="dot" style="background:${colorOf(r.category)}">${esc((r.category || '?').slice(0, 1))}</div>`}
+    ${r.photo ? `<div style="position:relative;flex:none"><img class="thumb" src="${r.photo}" alt="">${(r.photos || []).length ? `<span style="position:absolute;right:-4px;bottom:-4px;font-size:10px;background:var(--accent);color:#fff;border-radius:6px;padding:0 4px">${r.photos.length + 1}</span>` : ''}</div>` : `<div class="dot" style="background:${colorOf(r.category)}">${esc((r.category || '?').slice(0, 1))}</div>`}
     <div class="mid">
       <div class="t">${esc(title)}</div>
       <div class="small muted">${esc(r.category)}${r.payment ? ' · ' + esc(r.payment) : ''}${S.ui.bookId === 'all' ? `<span class="tag">${esc(bookName(r.bookId))}</span>` : ''}${t ? `<span class="tag">✈ ${esc(t.name)}</span>` : ''}${r.extra && Object.keys(r.extra).length ? '<span class="tag">匯入</span>' : ''}</div>
@@ -395,9 +426,22 @@ function renderSearch(v) {
 function openModal(html, cls = '') {
   const m = document.createElement('div'); m.className = 'mask';
   m.innerHTML = `<div class="modal ${cls}">${html}</div>`;
+  const h = $('.modal>h2:first-child', m);
+  if (h) { const x = document.createElement('button'); x.className = 'mclose'; x.type = 'button'; x.textContent = '✕'; x.title = '關閉'; x.onclick = () => m.remove(); h.appendChild(x); }
   m.addEventListener('mousedown', e => { if (e.target === m) m.remove(); });
   document.body.appendChild(m); return m;
 }
+/* 有視窗開著時鎖住背景，不讓背景頁面跟著捲動；關閉後回到原本位置 */
+let _lockY = null;
+new MutationObserver(() => {
+  const open = !!document.querySelector('body > .mask, body > .lightbox');
+  if (open && _lockY === null) {
+    _lockY = window.scrollY; document.body.style.top = `-${_lockY}px`; document.body.classList.add('locked');
+  } else if (!open && _lockY !== null) {
+    document.body.classList.remove('locked'); document.body.style.top = ''; window.scrollTo(0, _lockY); _lockY = null;
+  }
+}).observe(document.body, {childList: true});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { const ms = $$('body > .mask, body > .lightbox'); ms.length && ms[ms.length - 1].remove(); } });
 function showPhoto(src) {
   const l = document.createElement('div'); l.className = 'lightbox'; l.innerHTML = `<img src="${src}">`;
   l.onclick = () => l.remove(); document.body.appendChild(l);
@@ -485,7 +529,8 @@ function openRecordForm(rec, preset = {}) {
       <div class="field"><label>旅行（選填）</label><select id="fTrip"></select></div>
     </div>
     <div class="field"><label>照片</label>
-      <label class="photo" id="fPhotoBox"><input type="file" accept="image/*" id="fPhoto" hidden><span id="fPhotoInner"></span></label></div>
+      <div id="fPics" class="pics"></div>
+      <label class="photo" id="fPhotoBox"><input type="file" accept="image/*" id="fPhoto" hidden multiple><span id="fPhotoInner"></span></label></div>
     ${f.extra && Object.keys(f.extra).length ? `<div class="field"><label>匯入時保留的原始欄位</label><div class="kv">${Object.entries(f.extra).map(([k, v]) => `<span>${esc(k)}</span><span>${esc(v)}</span>`).join('')}</div></div>` : ''}
     <div class="actions">
       ${isNew ? '' : '<button class="btn dan l" id="fDel">刪除</button><button class="btn" id="fDup">複製一筆</button>'}
@@ -527,10 +572,10 @@ function openRecordForm(rec, preset = {}) {
     $('#fCurName', m).textContent = f.currency;
     $('#fBase', m).textContent = foreign ? `≈ ${st.baseCur} ${fmt((+f.amount || 0) * (+f.rate || 0))}` : '';
   }
+  let pics = [f.photo, ...(f.photos || [])].filter(Boolean);
   function drawPhoto() {
-    $('#fPhotoInner', m).innerHTML = f.photo
-      ? `<img src="${f.photo}"><div class="row" style="justify-content:center;margin-top:8px"><button type="button" class="btn sm" id="fPView">放大</button><button type="button" class="btn sm dan" id="fPDel">移除照片</button></div>`
-      : '📷 點此上傳收據或照片（會自動壓縮）';
+    $('#fPics', m).innerHTML = pics.map((src, i) => `<div class="pic"><img src="${src}" data-view="${i}"><button type="button" data-rm="${i}" title="移除">✕</button>${isNew ? '' : `<button type="button" class="mv" data-mv="${i}" title="這張照片屬於別筆">⇄ 移到別筆</button>`}${i === 0 && pics.length > 1 ? '<span>主圖</span>' : ''}</div>`).join('');
+    $('#fPhotoInner', m).innerHTML = pics.length ? '＋ 再加照片' : '📷 點此上傳收據或照片（可多張，會自動壓縮）';
   }
   function drawSugg() {
     const list = suggestions(f.note, f.type);
@@ -567,15 +612,49 @@ function openRecordForm(rec, preset = {}) {
     $('#fAmt', m).focus(); $('#fAmt', m).select();
   };
   $('#fPhoto', m).onchange = async e => {
-    const file = e.target.files[0]; if (!file) return;
-    try { f.photo = await compressImage(file); drawPhoto(); } catch (err) { toast('無法讀取這張圖片'); }
+    for (const file of e.target.files) { try { pics.push(await compressImage(file)); } catch (err) { toast('無法讀取：' + file.name); } }
+    e.target.value = ''; drawPhoto();
   };
-  $('#fPhotoBox', m).onclick = e => {
-    if (e.target.id === 'fPDel') { e.preventDefault(); f.photo = null; $('#fPhoto', m).value = ''; drawPhoto(); }
-    else if (e.target.id === 'fPView') { e.preventDefault(); showPhoto(f.photo); }
+  $('#fPics', m).onclick = e => {
+    const v = e.target.dataset.view, r = e.target.dataset.rm;
+    if (v !== undefined) showPhoto(pics[+v]);
+    if (r !== undefined && confirm('移除這張照片？')) { pics.splice(+r, 1); drawPhoto(); }
+    const mv = e.target.dataset.mv;
+    if (mv !== undefined) movePhoto(+mv);
   };
+  /* 照片配錯時：移到同一天（或前後一天）的另一筆，或與那一筆交換照片 */
+  function movePhoto(i) {
+    const d = $('#fDate', m).value || rec.date;
+    const near = x => Math.abs(new Date(x) - new Date(d)) <= 864e5;
+    const cands = S.records.filter(r => r.id !== rec.id && near(r.date))
+      .sort((a, b) => (a.date === d ? 0 : 1) - (b.date === d ? 0 : 1) || (recCat(a) === recCat(rec) ? 0 : 1) - (recCat(b) === recCat(rec) ? 0 : 1) || a.date.localeCompare(b.date));
+    const mm = openModal(`<h2>這張照片屬於哪一筆？</h2>
+      <div class="row" style="gap:12px;align-items:flex-start;flex-wrap:nowrap;margin-bottom:12px"><img src="${pics[i]}" style="width:90px;border-radius:10px;cursor:zoom-in" id="mvBig">
+        <div class="small muted">列出 ${esc(d)} 前後一天的紀錄。<br>點選後，如果那一筆已經有照片，可以選擇<b>交換</b>（兩筆的照片互換，適合兩張配反的情況）或<b>加入</b>。</div></div>
+      <div class="card" style="padding:4px 8px">${cands.map(r => `<div class="rec" data-to="${r.id}">
+        ${r.photo ? `<img class="thumb" src="${r.photo}">` : `<div class="dot" style="background:${colorOf(r.category)}">${esc((r.category || '?').slice(0, 1))}</div>`}
+        <div class="mid"><div class="t">${esc((r.note || r.category).split('\n')[0])}</div><div class="small muted">${r.date.slice(5)} · ${esc(recCat(r))}${r.photo ? ` · 📷 ${1 + (r.photos || []).length}` : ''}</div></div>
+        <div class="amt ${r.type === 'income' ? 'inc' : 'exp'}">${r.currency !== st.baseCur ? esc(r.currency) + ' ' : ''}${fmt(r.amount)}</div></div>`).join('') || '<div class="empty">前後一天沒有其他紀錄</div>'}</div>
+      <div class="actions"><button class="btn" id="mvCancel">取消</button></div>`);
+    $('#mvBig', mm).onclick = () => showPhoto(pics[i]);
+    $('#mvCancel', mm).onclick = () => mm.remove();
+    mm.onclick = async e => {
+      const row = e.target.closest('[data-to]'); if (!row) return;
+      const t = S.records.find(r => r.id === row.dataset.to);
+      const tPics = [t.photo, ...(t.photos || [])].filter(Boolean);
+      let swap = false;
+      if (tPics.length) swap = confirm(`「${(t.note || t.category).split('\n')[0]}」已經有 ${tPics.length} 張照片。\n\n按「確定」＝兩筆的照片互換\n按「取消」＝只把這張加過去`);
+      if (swap) { const mine = pics.slice(); pics = tPics; t.photo = mine[0] || null; t.photos = mine.slice(1); }
+      else { const [pic] = pics.splice(i, 1); t.photo = t.photo || pic; t.photos = t.photo === pic ? (t.photos || []) : [...(t.photos || []), pic]; }
+      rec.photo = pics[0] || null; rec.photos = pics.slice(1); f.photo = rec.photo; f.photos = rec.photos;
+      t.updatedAt = rec.updatedAt = Date.now();
+      await putMany('records', [t, rec]);
+      mm.remove(); drawPhoto(); render(); toast(swap ? '已交換兩筆的照片' : '已移到另一筆');
+    };
+  }
   $('#fCancel', m).onclick = () => m.remove();
   async function save(asNew) {
+    f.photo = pics[0] || null; f.photos = pics.slice(1);
     f.date = $('#fDate', m).value; f.bookId = $('#fBook', m).value; f.note = noteI.value.trim();
     f.amount = parseFloat(f.amount); f.rate = f.currency === st.baseCur ? 1 : parseFloat(f.rate);
     if (!(f.amount >= 0) || $('#fAmt', m).value === '') { toast('請輸入金額'); $('#fAmt', m).focus(); return; }
@@ -982,7 +1061,7 @@ function detectSource(rows, sheetName) {
   if (nr && String(nr[1] ?? '').trim()) src.name = String(nr[1]).trim();
   return src;
 }
-function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('load fail')); document.head.appendChild(s); }); }
+function loadScript(src, ms = 30000) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; const t = setTimeout(() => rej(new Error('timeout')), ms); s.onload = () => { clearTimeout(t); res(); }; s.onerror = () => { clearTimeout(t); rej(new Error('load fail')); }; document.head.appendChild(s); }); }
 /* ---- 內建 xlsx 讀取器（不需網路）：解壓 zip → 讀 XML ---- */
 async function unzip(buf) {
   const dv = new DataView(buf); let eocd = -1;
@@ -1195,69 +1274,152 @@ function renderImport(v) {
 }
 
 /* ---- 批次照片 ---- */
-const PH = {items: null};
+const PH = {items: null, scope: 'all', ocr: null};
 const recCat = r => (r.extra && r.extra['原類別']) || r.category;
 function parsePhotoName(name) {
-  const base0 = name.normalize('NFC').replace(/\.[^.]+$/, '');
-  const m = base0.match(/^(\d{4})[-_.]?(\d{1,2})[-_.]?(\d{1,2})(?:[_\-\s]+(.*?))?(?:[_\-\s]+(\d+))?$/);
+  const b = name.normalize('NFC').replace(/\.[^.]+$/, '');
+  const m = b.match(/^(\d{4})[-_.]?(\d{1,2})[-_.]?(\d{1,2})(?:[_\-\s]+(.*?))?(?:[_\-\s]+(\d+))?$/);
   if (!m) return null;
   const date = validDate(m[1], m[2], m[3]); if (!date) return null;
   return {date, cat: (m[4] || '').trim(), seq: m[5] ? +m[5] : 0};
 }
-function planPhotos(files) {
-  PH.items && PH.items.forEach(it => URL.revokeObjectURL(it.url));
-  const items = files.map(f => ({file: f, url: URL.createObjectURL(f), info: parsePhotoName(f.name), target: '', status: ''}));
-  const order = (a, b) => (a.createdAt || 0) - (b.createdAt || 0);
-  // 依 日期+類別 分組，照編號排序後與紀錄（依原檔順序）一一配對
+/* 配對範圍：避免不同帳本（例如日常與旅行）同一天同類別的紀錄互相干擾 */
+function phScopes() {
+  const out = [['all', '全部紀錄']];
+  S.trips.forEach(t => out.push(['trip:' + t.id, '旅行：' + t.name]));
+  S.books.forEach(b => out.push(['book:' + b.id, '帳冊：' + b.year + '｜' + b.name]));
+  [...new Set(S.records.map(r => r.source).filter(Boolean))].forEach(x => out.push(['src:' + x, '匯入來源：' + x]));
+  return out;
+}
+function inScope(r) {
+  const s0 = PH.scope; if (s0 === 'all') return true;
+  const [k, v] = [s0.slice(0, s0.indexOf(':')), s0.slice(s0.indexOf(':') + 1)];
+  return k === 'trip' ? r.tripId === v : k === 'book' ? r.bookId === v : r.source === v;
+}
+/* 從 OCR 文字抓出所有金額數字 */
+function amountsInText(t) {
+  const out = new Set();
+  const grab = x => x.match(/\d{1,3}(?:[,.]\d{3})+|\d+/g)?.forEach(v => { const n = +v.replace(/[,.](?=\d{3}\b)/g, ''); if (n > 0 && n < 1e8) out.add(n); });
+  const norm = normalizeWidth(t).replace(/[oO](?=\d)|(?<=\d)[oO]/g, '0');
+  grab(norm);
+  grab(norm.replace(/(?<=\b\d{1,3})[ ](?=\d{3}\b)/g, ','));   // OCR 把 17,240 讀成「17 240」時也算進去
+  return out;
+}
+function ocrScore(it, r) {
+  if (!it.nums) return 0;
+  const a = Math.round(Math.abs(+r.amount));
+  return it.nums.has(a) ? 1 + Math.log10(a + 1) : 0;
+}
+/* 配對：同一天同類別成一組。先用收據金額（有辨識時）配對，其餘依編號順序 ↔ 原檔順序 */
+function matchPhotos() {
+  const items = PH.items, order = (a, b) => (a.createdAt || 0) - (b.createdAt || 0);
   const groups = {};
-  items.forEach(it => { if (it.info) (groups[it.info.date + '|' + it.info.cat] = groups[it.info.date + '|' + it.info.cat] || []).push(it); });
+  items.forEach(it => { if (it.manual) return; it.target = ''; it.how = '';
+    if (it.info) (groups[it.info.date + '|' + it.info.cat] = groups[it.info.date + '|' + it.info.cat] || []).push(it); else it.status = 'name'; });
+  const manualTargets = new Set(items.filter(it => it.manual && it.target).map(it => it.target));
   for (const [k, list] of Object.entries(groups)) {
     const [date, cat] = k.split('|');
     list.sort((a, b) => a.info.seq - b.info.seq || a.file.name.localeCompare(b.file.name));
-    const recs = S.records.filter(r => r.date === date && (!cat || recCat(r) === cat || r.category === cat)).sort(order);
-    list.forEach((it, i) => {
-      const r = recs[i];
-      it.target = r ? r.id : '';
-      it.status = !recs.length ? 'none' : list.length === recs.length ? 'ok' : (list.length > recs.length && i >= recs.length ? 'none' : 'check');
+    const recs = S.records.filter(r => inScope(r) && r.date === date && (!cat || recCat(r) === cat || r.category === cat) && !manualTargets.has(r.id)).sort(order);
+    if (!recs.length) { list.forEach(it => it.status = 'none'); continue; }
+    const used = new Set();
+    // 1) 收據金額相符者優先（分數高的先配）
+    const pairs = [];
+    list.forEach(it => recs.forEach(r => { const sc = ocrScore(it, r); if (sc) pairs.push([sc, it, r]); }));
+    pairs.sort((a, b) => b[0] - a[0]);
+    for (const [, it, r] of pairs) if (!it.target && !used.has(r.id)) { it.target = r.id; it.how = 'ocr'; used.add(r.id); }
+    // 2) 其餘依順序；照片比紀錄多時，多出來的視為同一筆的第二張照片
+    const rest = recs.filter(r => !used.has(r.id));
+    const left = list.filter(it => !it.target);
+    left.forEach((it, i) => {
+      if (rest[i]) { it.target = rest[i].id; it.how = 'order'; }
+      else { const prev = list.filter(x => x.target && x.info.seq < it.info.seq).pop() || list.find(x => x.target); if (prev) { it.target = prev.target; it.how = 'extra'; } }
     });
+    const sure = list.length === 1 && recs.length === 1;   // 只有一張照片對一筆紀錄才算確定；多筆時照片編號順序不一定等於明細順序
+    list.forEach(it => it.status = !it.target ? 'none' : it.how === 'ocr' ? 'ocr' : it.how === 'extra' ? 'check' : sure ? 'ok' : 'check');
+    // 依順序配到的照片上，若出現同組另一筆紀錄的金額 → 標為請確認
+    list.forEach(it => { if (it.how === 'order' && recs.some(r => r.id !== it.target && ocrScore(it, r))) it.status = 'check'; });
   }
-  items.forEach(it => { if (!it.info) it.status = 'name'; });
-  items.sort((a, b) => ({check: 0, none: 1, name: 2, ok: 3})[a.status] - ({check: 0, none: 1, name: 2, ok: 3})[b.status] || a.file.name.localeCompare(b.file.name));
-  PH.items = items; renderPhotoStep();
+}
+function planPhotos(files) {
+  PH.items && PH.items.forEach(it => URL.revokeObjectURL(it.url));
+  PH.items = files.map(f => ({file: f, url: URL.createObjectURL(f), info: parsePhotoName(f.name), target: '', status: '', how: '', nums: null, manual: false}));
+  PH.filter = 'all'; matchPhotos(); renderPhotoStep();
+}
+async function runOCR() {
+  if (!window.Tesseract) { toast('載入文字辨識中（約 5MB，需要網路）…'); await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'); }
+  const todo = PH.items.filter(it => it.info && !it.nums);
+  PH.ocr = {done: 0, total: todo.length, stop: false}; renderPhotoStep();
+  const worker = await Tesseract.createWorker('eng');
+  await worker.setParameters({tessedit_char_whitelist: '0123456789,.¥\\円 '});
+  for (const it of todo) {
+    if (PH.ocr.stop) break;
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = it.url; });
+      const k = Math.min(1, 1800 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = img.width * k; c.height = img.height * k; const g = c.getContext('2d'); g.filter = 'grayscale(1) contrast(1.4)'; g.drawImage(img, 0, 0, c.width, c.height);
+      const {data} = await worker.recognize(c); it.nums = amountsInText(data.text);
+    } catch (e) { it.nums = new Set(); }
+    PH.ocr.done++; matchPhotos(); renderPhotoStep();
+  }
+  await worker.terminate(); PH.ocr = null; matchPhotos(); renderPhotoStep();
 }
 function renderPhotoStep() {
   const box = $('#phStep'); if (!box || !PH.items) return;
   const items = PH.items, base0 = S.settings.baseCur;
-  const used = {}; items.forEach(it => { if (it.target) used[it.target] = (used[it.target] || 0) + 1; });
+  const cnt = {}; items.forEach(it => { if (it.target) cnt[it.target] = (cnt[it.target] || 0) + 1; });
   const n = k => items.filter(it => it.status === k).length;
   const ready = items.filter(it => it.target).length;
-  const label = r => `${r.date.slice(5)} ${recCat(r)} · ${r.currency !== base0 ? r.currency + ' ' : ''}${fmt(r.amount)} · ${(r.note || '').replace(/\s+/g, ' ').slice(0, 24)}${r.photo ? '（已有照片）' : ''}`;
-  box.innerHTML = `<div class="small" style="margin:14px 0 8px">共 ${items.length} 張：<span class="ok">自動配對 ${n('ok')}</span> · <span style="color:var(--accent-d)">請確認 ${n('check')}</span> · <span class="bad">找不到紀錄 ${n('none')}</span>${n('name') ? ` · <span class="bad">檔名無法辨識 ${n('name')}</span>` : ''}</div>
-    ${n('check') ? `<div class="small muted" style="margin-bottom:8px">「請確認」：同一天同類別的紀錄比照片多，無法確定是哪幾筆，已依順序先猜，請對照收據金額修正。</div>` : ''}
-    <div style="display:flex;flex-direction:column;gap:8px">${items.map((it, i) => {
-      const cands = it.info ? S.records.filter(r => r.date === it.info.date).sort((a, b) => (recCat(a) === it.info.cat ? 0 : 1) - (recCat(b) === it.info.cat ? 0 : 1) || (a.createdAt || 0) - (b.createdAt || 0)) : [];
-      const badge = {ok: '<span class="tag" style="color:var(--inc)">自動配對</span>', check: '<span class="tag" style="color:var(--accent-d)">請確認</span>', none: '<span class="tag" style="color:var(--exp)">找不到紀錄</span>', name: '<span class="tag" style="color:var(--exp)">檔名無法辨識</span>'}[it.status] || '';
-      return `<div class="row" style="flex-wrap:nowrap;gap:10px;background:var(--card2);border-radius:var(--r-s);padding:8px">
-        <img src="${it.url}" data-big="${i}" style="width:54px;height:72px;object-fit:cover;border-radius:8px;flex:none;cursor:zoom-in">
-        <div style="flex:1;min-width:0"><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.file.name)} ${badge}</div>
-          <select data-ph="${i}" style="margin-top:6px;padding:6px 10px;font-size:13px"><option value="">（不套用）</option>${cands.map(r => `<option value="${r.id}" ${r.id === it.target ? 'selected' : ''}>${esc(label(r))}</option>`).join('')}</select>
-          ${it.target && used[it.target] > 1 ? '<div class="small bad" style="margin-top:4px">有多張照片指定到同一筆，只會保留最後一張</div>' : ''}</div></div>`;
-    }).join('')}</div>
-    <div class="actions"><button class="btn" id="phClear">清除</button><button class="btn pri" id="phGo" ${ready ? '' : 'disabled'}>套用 ${ready} 張照片</button></div>`;
-  box.onchange = e => { const i = e.target.dataset.ph; if (i !== undefined) { PH.items[+i].target = e.target.value; if (PH.items[+i].status !== 'name') PH.items[+i].status = e.target.value ? (PH.items[+i].status === 'none' ? 'check' : PH.items[+i].status) : PH.items[+i].status; renderPhotoStep(); } };
+  const label = r => `${r.date.slice(5)} ${recCat(r)} · ${r.currency !== base0 ? r.currency + ' ' : ''}${fmt(r.amount)} · ${(r.note || '').replace(/\s+/g, ' ').slice(0, 22)}${r.photo ? ' 📷' : ''}`;
+  const BADGE = {ok: ['自動配對', 'var(--inc)'], ocr: ['金額相符', 'var(--inc)'], manual: ['已手動指定', 'var(--inc)'], check: ['請確認', 'var(--accent-d)'], none: ['找不到紀錄', 'var(--exp)'], name: ['檔名無法辨識', 'var(--exp)']};
+  const RANK = {check: 0, none: 1, name: 2, manual: 3, ocr: 4, ok: 5};
+  const shown = items.map((it, i) => [it, i]).filter(([it]) => PH.filter === 'all' || (PH.filter === 'todo' ? ['check', 'none', 'name'].includes(it.status) : true))
+    .sort((a, b) => RANK[a[0].status] - RANK[b[0].status] || a[0].file.name.localeCompare(b[0].file.name));
+  box.innerHTML = `
+    <div class="grid2" style="margin-top:14px">
+      <div class="field"><label>只配對到這個範圍的紀錄</label><select id="phScope">${phScopes().map(([k, t]) => `<option value="${esc(k)}" ${k === PH.scope ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+      <div class="field"><label>收據金額辨識（OCR，選用）</label>${PH.ocr ? `<button class="btn" id="phStop" style="width:100%">辨識中 ${PH.ocr.done}/${PH.ocr.total}… 停止</button>` : `<button class="btn" id="phOCR" style="width:100%" ${items.some(it => it.info && !it.nums) ? '' : 'disabled'}>🔍 讀取收據金額來配對</button>`}</div>
+    </div>
+    <div class="small" style="margin:4px 0 8px;line-height:1.8">共 ${items.length} 張：<span class="ok">自動配對 ${n('ok')}</span> · <span class="ok">金額相符 ${n('ocr')}</span>${n('manual') ? ` · <span class="ok">手動 ${n('manual')}</span>` : ''} · <span style="color:var(--accent-d)">請確認 ${n('check')}</span> · <span class="bad">找不到 ${n('none')}</span>${n('name') ? ` · <span class="bad">檔名無法辨識 ${n('name')}</span>` : ''}</div>
+    <div class="chips" style="margin-bottom:10px" id="phFilter"><span class="chip ${PH.filter === 'todo' ? 'on' : ''}" data-f="todo">只看需要處理的</span><span class="chip ${PH.filter === 'all' ? 'on' : ''}" data-f="all">全部</span></div>
+    ${n('check') ? `<div class="small muted" style="margin-bottom:8px">「請確認」：同一天同類別有兩筆以上紀錄，照片的編號順序不一定和明細順序相同，所以只能先依順序猜。建議先按「讀取收據金額來配對」。點縮圖可放大看收據金額，再從選單改成正確的那筆；手動改過的會固定，不會被重新配對。</div>` : ''}
+    <div style="display:flex;flex-direction:column;gap:8px">${shown.map(([it, i]) => {
+      const cands = it.info ? S.records.filter(r => r.date === it.info.date && (inScope(r) || r.id === it.target)).sort((a, b) => (recCat(a) === it.info.cat ? 0 : 1) - (recCat(b) === it.info.cat ? 0 : 1) || ocrScore(it, b) - ocrScore(it, a) || (a.createdAt || 0) - (b.createdAt || 0)) : [];
+      const [bt, bc] = BADGE[it.status] || ['', ''];
+      const nums = it.nums && it.nums.size ? [...it.nums].sort((a, b) => b - a).slice(0, 4).map(x => fmt(x)).join('、') : '';
+      return `<div class="row" style="flex-wrap:nowrap;gap:10px;background:var(--card2);border-radius:var(--r-s);padding:8px;align-items:flex-start">
+        <img src="${it.url}" data-big="${i}" style="width:64px;height:86px;object-fit:cover;border-radius:8px;flex:none;cursor:zoom-in">
+        <div style="flex:1;min-width:0"><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.file.name)}</div>
+          <div style="margin-top:2px">${bt ? `<span class="tag" style="margin:0;color:${bc}">${bt}</span>` : ''}${it.target && cnt[it.target] > 1 ? `<span class="tag">這筆共 ${cnt[it.target]} 張</span>` : ''}${nums ? `<span class="tag">收據數字 ${nums}</span>` : ''}</div>
+          <select data-ph="${i}" style="margin-top:6px;padding:6px 10px;font-size:13px"><option value="">（不套用）</option>${cands.map(r => `<option value="${r.id}" ${r.id === it.target ? 'selected' : ''}>${ocrScore(it, r) ? '✓ ' : ''}${esc(label(r))}</option>`).join('')}</select></div></div>`;
+    }).join('') || '<div class="empty small">沒有需要處理的照片 🎉</div>'}</div>
+    <div class="small muted" style="margin-top:8px">已有照片的紀錄（📷）會被這次的照片取代。</div>
+    <div class="actions"><button class="btn" id="phClear">清除</button><button class="btn pri" id="phGo" ${ready && !PH.ocr ? '' : 'disabled'}>套用 ${ready} 張照片</button></div>`;
+  box.onchange = e => {
+    if (e.target.id === 'phScope') { PH.scope = e.target.value; matchPhotos(); return renderPhotoStep(); }
+    const i = e.target.dataset.ph; if (i === undefined) return;
+    const it = PH.items[+i]; it.target = e.target.value; it.manual = true; it.status = it.target ? 'manual' : (it.info ? 'none' : 'name');
+    matchPhotos(); renderPhotoStep();
+  };
   box.onclick = async e => {
+    const f = e.target.closest('#phFilter .chip'); if (f) { PH.filter = f.dataset.f; return renderPhotoStep(); }
     if (e.target.dataset.big !== undefined) return showPhoto(PH.items[+e.target.dataset.big].url);
+    if (e.target.id === 'phOCR') { e.target.disabled = true; e.target.textContent = '載入文字辨識中…'; try { await runOCR(); } catch (err) { PH.ocr = null; renderPhotoStep(); toast('無法載入文字辨識（需要網路）'); } return; }
+    if (e.target.id === 'phStop') { PH.ocr.stop = true; return; }
     if (e.target.id === 'phClear') { PH.items.forEach(it => URL.revokeObjectURL(it.url)); PH.items = null; box.innerHTML = ''; }
     if (e.target.id === 'phGo') {
-      const btn = e.target; btn.disabled = true; const todo = PH.items.filter(it => it.target); const changed = new Map(); let fail = 0;
-      for (const [k, it] of todo.entries()) {
-        btn.textContent = `處理中 ${k + 1}/${todo.length}…`;
-        try { const r = S.records.find(x => x.id === it.target); r.photo = await compressImage(it.file); r.updatedAt = Date.now(); changed.set(r.id, r); }
-        catch (err) { fail++; }
+      const btn = e.target; btn.disabled = true;
+      const todo = PH.items.filter(it => it.target).sort((a, b) => (a.info?.seq || 0) - (b.info?.seq || 0));
+      const byRec = new Map(); let fail = 0, k = 0;
+      for (const it of todo) {
+        btn.textContent = `處理中 ${++k}/${todo.length}…`;
+        try { const img = await compressImage(it.file); (byRec.get(it.target) || byRec.set(it.target, []).get(it.target)).push(img); } catch (err) { fail++; }
       }
-      await putMany('records', [...changed.values()]);
+      const changed = [];
+      byRec.forEach((imgs, id) => { const r = S.records.find(x => x.id === id); if (!r) return; r.photo = imgs[0]; r.photos = imgs.slice(1); r.updatedAt = Date.now(); changed.push(r); });
+      await putMany('records', changed);
       PH.items.forEach(it => URL.revokeObjectURL(it.url)); PH.items = null; box.innerHTML = '';
-      toast(`已套用 ${changed.size} 張照片${fail ? `，${fail} 張無法讀取` : ''}`);
+      toast(`已把 ${todo.length - fail} 張照片套用到 ${changed.length} 筆紀錄${fail ? `，${fail} 張無法讀取` : ''}`);
     }
   };
 }
@@ -1495,8 +1657,26 @@ function renderSettings(v) {
   $('#baseCur').onchange = async e => { st.baseCur = e.target.value; await saveSettings(); render(); };
 }
 
+/* ================= 新版本檢查 ================= */
+/* 打開網頁時向 GitHub 取一次最新的 index.html（不走快取），版本不同就提示重新整理 */
+async function checkUpdate() {
+  if (!/^https?:/.test(location.protocol)) return;
+  try {
+    const url = location.href.split('#')[0].split('?')[0];
+    const txt = await (await fetch(url + '?t=' + Date.now(), {cache: 'no-store'})).text();
+    const v = (txt.match(/const APP_VERSION = '([^']+)'/) || [])[1];
+    if (v && v !== APP_VERSION && !$('.updbar')) {
+      const bar = document.createElement('div'); bar.className = 'updbar';
+      bar.innerHTML = `有新版本 ${esc(v.split('（')[0])}<button>立即更新</button>`;
+      bar.querySelector('button').onclick = () => { location.replace(url + '?v=' + encodeURIComponent(v.split('（')[0]) + '&t=' + Date.now()); };
+      document.body.appendChild(bar);
+    }
+  } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+
 /* ================= 啟動 ================= */
-load().then(render).catch(e => { document.body.innerHTML = `<div class="wrap"><div class="card">無法開啟資料庫：${esc(e.message)}<br>請確認沒有使用無痕模式。</div></div>`; });
+load().then(() => { render(); checkUpdate(); }).catch(e => { document.body.innerHTML = `<div class="wrap"><div class="card">無法開啟資料庫：${esc(e.message)}<br>請確認沒有使用無痕模式。</div></div>`; });
 </script>
 </body>
 </html>
