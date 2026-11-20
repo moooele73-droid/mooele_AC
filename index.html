@@ -136,6 +136,13 @@ body.locked{position:fixed;left:0;right:0;overflow:hidden}
 .bar{height:8px;background:var(--card2);border-radius:99px;overflow:hidden}
 .bar>i{display:block;height:100%;border-radius:99px;background:var(--accent)}
 .catrow{display:grid;grid-template-columns:14px 1fr auto;gap:8px 10px;align-items:center;padding:6px 0}
+.range2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.range2 input[type=date]{padding:8px 10px}
+.seg button{white-space:nowrap}
+#sMode button{padding:8px 12px}
+.recurchk{gap:8px;margin:0 4px 12px;font-size:14px;cursor:pointer;flex-wrap:nowrap}
+.recurchk input{width:18px;height:18px;flex:none}
+.rangebox{background:var(--card2);border-radius:var(--r-s);padding:10px 12px;margin:-2px 0 12px}
 .pnav{display:flex;align-items:center;gap:8px;margin:14px 0 12px}
 .plabel{flex:1;text-align:center;font-size:19px;font-weight:700}
 .plabel .small{font-weight:400;font-size:11.5px;margin-top:2px}
@@ -214,7 +221,7 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
 <button class="fab" id="fab" title="記一筆">＋</button>
 
 <script>
-const APP_VERSION = '2.7（2026-11-17）';
+const APP_VERSION = '2.9（2026-11-20）';
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -290,7 +297,7 @@ async function load() {
   Object.assign(S.ui, {tab: 'list', bookId: 'all', year: +latest.slice(0, 4), month: +latest.slice(5, 7)});
 }
 const saveSettings = () => put('meta', S.settings);
-const saveUI = () => { try { localStorage.setItem('mi-ui', JSON.stringify({tab: S.ui.tab, year: S.ui.year, bookId: S.ui.bookId, statType: S.ui.statType, unit: S.ui.unit, incTrips: S.ui.incTrips, statMode: S.ui.statMode})); } catch (e) {} };
+const saveUI = () => { try { localStorage.setItem('mi-ui', JSON.stringify({tab: S.ui.tab, year: S.ui.year, bookId: S.ui.bookId, statType: S.ui.statType, unit: S.ui.unit, incTrips: S.ui.incTrips, statMode: S.ui.statMode, rangeFrom: S.ui.rangeFrom, rangeTo: S.ui.rangeTo})); } catch (e) {} };
 
 async function ensureBook(year, name) {
   year = +year;
@@ -310,10 +317,10 @@ function years() {
   const ys = new Set([new Date().getFullYear(), ...S.books.map(b => +b.year), ...S.records.map(r => +r.date.slice(0, 4))]);
   return [...ys].filter(Boolean).sort((a, b) => b - a);
 }
+const inBookView = r => { const b = S.ui.bookId; return b === 'all' || (String(b).startsWith('trip:') ? r.tripId === b.slice(5) : (!r.tripId && r.bookId === b)); };
 function scoped({ignoreMonth = false} = {}) {
-  const {year, bookId, month} = S.ui;
-  return S.records.filter(r => +r.date.slice(0, 4) === +year
-    && (bookId === 'all' || (bookId.startsWith('trip:') ? r.tripId === bookId.slice(5) : (!r.tripId && r.bookId === bookId)))
+  const {year, month} = S.ui;
+  return S.records.filter(r => +r.date.slice(0, 4) === +year && inBookView(r)
     && (ignoreMonth || !month || +r.date.slice(5, 7) === month));
 }
 
@@ -372,7 +379,7 @@ function recHTML(r) {
     ${r.photo ? `<div class="thumbbox" data-photo="${r.id}" title="點一下放大照片"><img class="thumb" src="${r.photo}" alt="">${(r.photos || []).length ? `<span style="position:absolute;right:-4px;bottom:-4px;font-size:10px;background:var(--accent);color:#fff;border-radius:6px;padding:0 4px">${r.photos.length + 1}</span>` : ''}</div>` : `<div class="dot" style="background:${colorOf(r.category)}">${esc((r.category || '?').slice(0, 1))}</div>`}
     <div class="mid">
       <div class="t">${esc(title)}</div>
-      <div class="small muted">${esc(r.category)}${r.payment ? ' · ' + esc(r.payment) : ''}${t ? `<span class="tag">✈ ${esc(t.name)}</span>` : ''}${r.extra && Object.keys(r.extra).length ? '<span class="tag">匯入</span>' : ''}</div>
+      <div class="small muted">${esc(r.category)}${r.payment ? ' · ' + esc(r.payment) : ''}${t ? `<span class="tag">✈ ${esc(t.name)}</span>` : ''}${r.recurId ? '<span class="tag">🔁 固定</span>' : ''}${r.extra && Object.keys(r.extra).length ? '<span class="tag">匯入</span>' : ''}</div>
     </div>
     <div class="amt ${r.type === 'income' ? 'inc' : 'exp'}">
       ${r.type === 'income' ? '+' : '−'}${foreign ? fmtI(base(r)) : fmt(base(r))}
@@ -591,7 +598,7 @@ function suggestions(q, type) {
     else if (q.includes(n) && n.length >= 2) score = 8;
     else { const nb = bigrams(n); let hit = 0; qb.forEach(b => nb.has(b) && hit++); score = hit ? hit / Math.max(qb.size, 1) * 6 : 0; }
     if (score <= 0) continue;
-    const key = [r.note, r.category, r.payment, r.amount, r.currency].join('|');
+    const key = r.note.trim().toLowerCase();   // 只依文字合併
     const g = groups.get(key) || {r, score, count: 0, last: ''};
     g.count++; if (r.date > g.last) { g.last = r.date; g.r = r; }
     groups.set(key, g);
@@ -649,6 +656,8 @@ function openRecordForm(rec, preset = {}) {
     <div class="field"><label>照片</label>
       <div id="fPics" class="pics"></div>
       <label class="photo" id="fPhotoBox"><input type="file" accept="image/*" id="fPhoto" hidden multiple><span id="fPhotoInner"></span></label></div>
+    ${isNew ? `<label class="row recurchk"><input type="checkbox" id="fRecur"> 🔁 設為每月固定（每月同一天自動記這筆）</label>`
+      : (rec.recurId ? `<div class="small muted" style="margin:0 4px 12px">🔁 這筆是由「每月固定收支」自動記入的${recurList().find(x => x.id === rec.recurId) ? '　<a id="fRecurEdit" style="color:var(--accent-d);text-decoration:underline;cursor:pointer">編輯規則</a>' : ''}</div>` : '')}
     ${f.extra && Object.keys(f.extra).length ? `<div class="field"><label>匯入時保留的原始欄位</label><div class="kv">${Object.entries(f.extra).map(([k, v]) => `<span>${esc(k)}</span><span>${esc(v)}</span>`).join('')}</div></div>` : ''}
     <div class="actions">
       ${isNew ? '' : '<button class="btn dan l" id="fDel">刪除</button><button class="btn" id="fDup">複製一筆</button>'}
@@ -698,7 +707,7 @@ function openRecordForm(rec, preset = {}) {
   function drawSugg() {
     const list = suggestions(f.note, f.type);
     $('#fSugg', m).innerHTML = list.map((g, i) => `<button type="button" data-i="${i}"><b>${esc(g.r.note)}</b>
-      <span class="muted"> · ${esc(g.r.category)} · ${g.r.currency !== st.baseCur ? esc(g.r.currency) + ' ' : ''}${fmt(g.r.amount)}${g.r.payment ? ' · ' + esc(g.r.payment) : ''}</span>
+      <span class="muted"> · ${esc(g.r.category)}</span>
       <span class="small muted" style="float:right">${g.count > 1 ? g.count + ' 次 · ' : ''}${g.last}</span></button>`).join('');
     $('#fSugg', m)._list = list;
   }
@@ -725,11 +734,9 @@ function openRecordForm(rec, preset = {}) {
   $('#fSugg', m).onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
     const r = $('#fSugg', m)._list[+b.dataset.i].r;
-    Object.assign(f, {note: r.note, category: r.category, payment: r.payment || f.payment, amount: r.amount, currency: r.currency || st.baseCur});
-    f.rate = f.currency === st.baseCur ? 1 : (r.rate || st.rates[f.currency] || 1);
-    noteI.value = f.note; $('#fAmt', m).value = f.amount; $('#fCur', m).value = f.currency; $('#fRate', m).value = f.rate;
-    drawCats(); drawPay(); drawRate(); $('#fSugg', m).innerHTML = '';
-    $('#fAmt', m).focus(); $('#fAmt', m).select();
+    f.note = r.note; noteI.value = f.note;   // 只帶入文字，不帶入金額
+    $('#fSugg', m).innerHTML = '';
+    $('#fAmt', m).focus();
   };
   $('#fPhoto', m).onchange = async e => {
     for (const file of e.target.files) { try { pics.push(await compressImage(file)); } catch (err) { toast('無法讀取：' + file.name); } }
@@ -782,15 +789,23 @@ function openRecordForm(rec, preset = {}) {
     if (!f.date) { toast('請選擇日期'); return; }
     if (!(f.rate > 0)) { toast('請輸入匯率'); return; }
     if (f.currency !== st.baseCur) { st.rates[f.currency] = f.rate; saveSettings(); }
+    if (asNew) delete f.recurId;
     const out = {...f, id: asNew || isNew ? uid() : rec.id, createdAt: asNew || isNew ? Date.now() : (rec.createdAt || Date.now()), updatedAt: Date.now()};
     await put('records', out);
     const i = S.records.findIndex(r => r.id === out.id);
     if (i >= 0) S.records[i] = out; else S.records.push(out);
+    if (isNew && !asNew && $('#fRecur', m)?.checked && !out.tripId) {   // 由這筆建立每月固定規則（本月已記，不重複）
+      const rule = {id: uid(), type: out.type, amount: out.amount, currency: out.currency, category: out.category, payment: out.payment, note: out.note,
+        day: String(+out.date.slice(8)), start: monthKey(out.date), end: '', active: true, made: [monthKey(out.date)]};
+      recurList().push(rule); out.recurId = rule.id; await put('records', out); await saveSettings();
+      m.remove(); toast(`已儲存，之後每月 ${rule.day} 號自動記帳`); render(); return;
+    }
     m.remove(); toast(asNew ? '已複製一筆' : '已儲存');
     if (+out.date.slice(0, 4) !== +S.ui.year && S.ui.tab === 'list') toast(`已存到 ${out.date.slice(0, 4)} 年`);
     render();
   }
   $('#fSave', m).onclick = () => save(false);
+  $('#fRecurEdit', m)?.addEventListener('click', () => { m.remove(); openRecurForm(recurList().find(x => x.id === rec.recurId)); });
   if (!isNew) {
     $('#fDup', m).onclick = () => { $('#fDate', m).value = today(); save(true); };
     $('#fDel', m).onclick = async () => {
@@ -859,7 +874,21 @@ function periodKey(date, unit) {
   if (unit === 'quarter') { const q = Math.ceil(mo / 3); return {k: `${y}-Q${q}`, label: `${y} Q${q}`, short: `Q${q}`}; }
   return {k: String(y), label: `${y} 年`, short: String(y)};
 }
-function statsScope() { return scoped(); }
+function statsScope() {
+  if (S.ui.statMode === 'range') { const {rangeFrom: a, rangeTo: b} = S.ui; return S.records.filter(r => r.date >= a && r.date <= b && inBookView(r)); }
+  return scoped();
+}
+const addDays = (d, n) => { const x = new Date(d + 'T00:00'); x.setDate(x.getDate() + n); return ymd(x); };
+const dayCount = (a, b) => Math.round((new Date(b + 'T00:00') - new Date(a + 'T00:00')) / 864e5) + 1;
+function rangePreset(k) {
+  const t = today(), y = t.slice(0, 4), mo = +t.slice(5, 7);
+  if (k === '7') return [addDays(t, -6), t];
+  if (k === '30') return [addDays(t, -29), t];
+  if (k === 'q') { const qm = Math.floor((mo - 1) / 3) * 3 + 1; return [`${y}-${pad(qm)}-01`, t]; }
+  if (k === 'ytd') return [`${y}-01-01`, t];
+  if (k === 'lastm') { const d = new Date(+y, mo - 2, 1); return [ymd(d), ymd(new Date(+y, mo - 1, 0))]; }
+  return [`${y}-${pad(mo)}-01`, t];
+}
 /* 統計細項：點類別／期間／付款方式，列出對應的紀錄 */
 function openDrill(kind, key, custom = null) {
   const {unit} = S.ui; const statType = custom ? 'expense' : S.ui.statType;
@@ -908,6 +937,10 @@ function openDrill(kind, key, custom = null) {
 }
 /* 統計期間：月 ↔ 年，左右滑動或按 ‹ › 切換 */
 function statShift(d) {
+  if (S.ui.statMode === 'range') {   // 自訂區間：整段往前／往後移動同樣天數
+    const n = dayCount(S.ui.rangeFrom, S.ui.rangeTo);
+    S.ui.rangeFrom = addDays(S.ui.rangeFrom, n * d); S.ui.rangeTo = addDays(S.ui.rangeTo, n * d); return true;
+  }
   const ys = years(), minY = Math.min(...ys), maxY = Math.max(...ys);
   if (S.ui.statMode === 'year') { const y = +S.ui.year + d; if (y < minY || y > maxY) return false; S.ui.year = y; S.ui.bookId = 'all'; return true; }
   let y = +S.ui.year, m = (S.ui.month || 1) + d;
@@ -918,7 +951,10 @@ function statShift(d) {
 }
 function renderStats(v) {
   const {statType} = S.ui;
-  if (S.ui.statMode !== 'year') {
+  if (S.ui.statMode === 'range') {
+    if (!S.ui.rangeFrom || !S.ui.rangeTo) [S.ui.rangeFrom, S.ui.rangeTo] = rangePreset('month');
+    if (S.ui.rangeFrom > S.ui.rangeTo) [S.ui.rangeFrom, S.ui.rangeTo] = [S.ui.rangeTo, S.ui.rangeFrom];
+  } else if (S.ui.statMode !== 'year') {
     S.ui.statMode = 'month';
     if (!S.ui.month) {   // 月模式沒有選月份時：今年用本月，其他年份用最後有資料的月份
       const now = new Date();
@@ -926,9 +962,11 @@ function renderStats(v) {
       S.ui.month = +S.ui.year === now.getFullYear() ? now.getMonth() + 1 : (ms.length ? Math.max(...ms) : 12);
     }
   } else S.ui.month = 0;
+  const isRange = S.ui.statMode === 'range';
   const rsAll = statsScope();
   const rs = forStats(rsAll);
-  const label = S.ui.statMode === 'year' ? `${S.ui.year} 年` : `${S.ui.year} 年 ${S.ui.month} 月`;
+  const fmtD = d => d.slice(0, 4) === today().slice(0, 4) ? `${+d.slice(5, 7)}/${+d.slice(8)}` : d.replace(/-/g, '/');
+  const label = isRange ? `${fmtD(S.ui.rangeFrom)} – ${fmtD(S.ui.rangeTo)}` : S.ui.statMode === 'year' ? `${S.ui.year} 年` : `${S.ui.year} 年 ${S.ui.month} 月`;
   const inc = rs.filter(r => r.type === 'income').reduce((s, r) => s + base(r), 0);
   const exp = rs.filter(r => r.type !== 'income').reduce((s, r) => s + base(r), 0);
   const typed = rs.filter(r => (r.type === 'income') === (statType === 'income'));
@@ -940,26 +978,34 @@ function renderStats(v) {
   typed.forEach(r => { const p = r.payment || '未填'; byPay[p] = (byPay[p] || 0) + base(r); });
   const pays = Object.entries(byPay).sort((a, b) => b[1] - a[1]);
   // 與上一期比較
-  const prev = (() => { const keep = {year: S.ui.year, month: S.ui.month, bookId: S.ui.bookId};
+  const prev = (() => { const keep = {year: S.ui.year, month: S.ui.month, bookId: S.ui.bookId, rangeFrom: S.ui.rangeFrom, rangeTo: S.ui.rangeTo};
     if (!statShift(-1)) return null; const p = forStats(statsScope()).filter(r => (r.type === 'income') === (statType === 'income')).reduce((s, r) => s + base(r), 0);
     Object.assign(S.ui, keep); return p; })();
   const diff = prev ? (total - prev) / prev * 100 : null;
   const ys = years();
-  const canPrev = S.ui.statMode === 'year' ? +S.ui.year > Math.min(...ys) : !(+S.ui.year === Math.min(...ys) && S.ui.month === 1);
-  const canNext = S.ui.statMode === 'year' ? +S.ui.year < Math.max(...ys) : !(+S.ui.year === Math.max(...ys) && S.ui.month === 12);
+  const canPrev = isRange || (S.ui.statMode === 'year' ? +S.ui.year > Math.min(...ys) : !(+S.ui.year === Math.min(...ys) && S.ui.month === 1));
+  const canNext = isRange || (S.ui.statMode === 'year' ? +S.ui.year < Math.max(...ys) : !(+S.ui.year === Math.max(...ys) && S.ui.month === 12));
+  const nDays = isRange ? dayCount(S.ui.rangeFrom, S.ui.rangeTo) : 0;
 
   v.innerHTML = `
   <div id="swipeArea">
   <div class="card">
     <div class="row" style="gap:8px">
-      <div class="seg" id="sMode" style="font-size:13.5px"><button class="n" data-v="month">月</button><button class="n" data-v="year">年</button></div>
+      <div class="seg" id="sMode" style="font-size:13.5px"><button class="n" data-v="month">月</button><button class="n" data-v="year">年</button><button class="n" data-v="range">自訂</button></div>
       <div class="seg" style="flex:1;min-width:170px" id="sType"><button class="e" data-v="expense">支出</button><button class="i" data-v="income">收入</button></div>
     </div>
     <div class="pnav">
       <button class="pbtn" data-sh="-1" ${canPrev ? '' : 'disabled'}>‹</button>
-      <div class="plabel">${label}<div class="small muted">← 左右滑動切換 →</div></div>
+      <div class="plabel" ${isRange ? 'style="font-size:17px"' : ''}>${label}<div class="small muted">${isRange ? `共 ${nDays} 天・滑動會整段移動 ${nDays} 天` : '← 左右滑動切換 →'}</div></div>
       <button class="pbtn" data-sh="1" ${canNext ? '' : 'disabled'}>›</button>
     </div>
+    ${isRange ? `<div class="rangebox">
+      <div class="range2"><div class="field" style="margin:0"><label>開始</label><input type="date" id="rFrom" value="${S.ui.rangeFrom}"></div>
+        <div class="field" style="margin:0"><label>結束</label><input type="date" id="rTo" value="${S.ui.rangeTo}"></div></div>
+      <div class="scrollx" style="margin-top:10px"><div class="chips" id="rPre">${[['7', '近 7 天'], ['30', '近 30 天'], ['month', '本月'], ['lastm', '上個月'], ['q', '本季'], ['ytd', '今年至今']].map(([k, t]) => {
+        const [a, b] = rangePreset(k); return `<span class="chip ${a === S.ui.rangeFrom && b === S.ui.rangeTo ? 'on' : ''}" data-p="${k}">${t}</span>`; }).join('')}</div></div>
+      ${S.ui.bookId !== 'all' ? `<div class="small muted" style="margin-top:8px">目前只看：${esc($('#selBook').selectedOptions[0]?.textContent || '')}（可在上方切回「全部帳冊」）</div>` : ''}
+    </div>` : ''}
     <div class="sum3">
       <div><span class="small muted">收入</span><b class="inc">${fmtI(inc)}</b></div>
       <div><span class="small muted">支出</span><b class="exp">${fmtI(exp)}</b></div>
@@ -967,7 +1013,7 @@ function renderStats(v) {
     </div>${tripNote(rsAll)}
   </div>
   <div class="card">
-    <h3>分類別統計 <span class="small muted sp">${diff === null ? '' : `比上${S.ui.statMode === 'year' ? '年' : '月'} ${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff).toFixed(0)}%`}</span></h3>
+    <h3>分類別統計 <span class="small muted sp">${diff === null ? '' : `比上${isRange ? '一段' : S.ui.statMode === 'year' ? '年' : '月'} ${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff).toFixed(0)}%`}</span></h3>
     ${cats.length ? `<div class="donut-wrap">${donutSVG(cats, statType === 'income' ? '總收入' : '總支出', fmtI(total))}
       <div>${cats.map(c => `<div class="catrow drill" data-drill="cat" data-k="${esc(c.label)}"><span class="sw" style="background:${c.color}"></span>
         <div><div class="row" style="justify-content:space-between"><span>${esc(c.label)} <span class="small muted">${c.n} 筆</span></span><span class="small muted">${(c.value / total * 100).toFixed(1)}%</span></div>
@@ -983,6 +1029,11 @@ function renderStats(v) {
   $$('#sMode button').forEach(b => b.classList.toggle('on', b.dataset.v === S.ui.statMode));
   $('#sType').onclick = e => { const b = e.target.closest('button'); if (b) { S.ui.statType = b.dataset.v; render(); } };
   $('#sMode').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.v !== S.ui.statMode) { S.ui.statMode = b.dataset.v; S.ui.month = 0; render(); } };
+  if (isRange) {
+    const setR = () => { const a = $('#rFrom').value, b = $('#rTo').value; if (!a || !b) return; S.ui.rangeFrom = a; S.ui.rangeTo = b; render(); };
+    $('#rFrom').onchange = setR; $('#rTo').onchange = setR;
+    $('#rPre').onclick = e => { const c = e.target.closest('[data-p]'); if (!c) return; [S.ui.rangeFrom, S.ui.rangeTo] = rangePreset(c.dataset.p); render(); };
+  }
   const shift = (d) => { if (!statShift(d)) return; S._slide = d; render(); };
   S._statShift = shift;
   v.onclick = e => {
@@ -1831,13 +1882,119 @@ function makeSortable(list, onDone) {
   list.addEventListener('pointerup', end); list.addEventListener('pointercancel', end);
 }
 
+/* ================= 每月固定收支 ================= */
+const recurList = () => (S.settings.recurring = S.settings.recurring || []);
+const monthKey = d => d.slice(0, 7);
+function dueDate(rule, ym) {   // 該月的記帳日：超過月底就用月底
+  const [y, m] = ym.split('-').map(Number), last = new Date(y, m, 0).getDate();
+  return `${ym}-${pad(rule.day === 'end' ? last : Math.min(+rule.day, last))}`;
+}
+const nextYM = ym => { let [y, m] = ym.split('-').map(Number); m++; if (m > 12) { m = 1; y++; } return `${y}-${pad(m)}`; };
+function nextDue(rule) {   // 今天以後（含今天）第一個還沒記的日期
+  const t = today(); let ym = rule.start && rule.start > monthKey(t) ? rule.start : monthKey(t);
+  for (let i = 0; i < 240; i++, ym = nextYM(ym)) {
+    if (rule.end && ym > rule.end) return null;
+    const d = dueDate(rule, ym);
+    if (d >= t && !(rule.made || []).includes(ym)) return d;
+  }
+  return null;
+}
+/* 打開網頁時補記：從開始月份到本月，日期已到且尚未記過的月份 */
+async function runRecurring() {
+  const rules = recurList().filter(r => r.active !== false); if (!rules.length) return 0;
+  const t = today(), out = [];
+  for (const rule of rules) {
+    rule.made = rule.made || [];
+    let ym = rule.start || monthKey(t);
+    for (let i = 0; i < 240 && ym <= monthKey(t); i++, ym = nextYM(ym)) {
+      if (rule.end && ym > rule.end) break;
+      const d = dueDate(rule, ym);
+      if (d > t || rule.made.includes(ym)) continue;
+      const cur = rule.currency || S.settings.baseCur;
+      out.push({id: uid(), bookId: (await ensureBook(+d.slice(0, 4))).id, type: rule.type, amount: +rule.amount, currency: cur,
+        rate: cur === S.settings.baseCur ? 1 : (S.settings.rates[cur] || 1), category: rule.category, date: d, payment: rule.payment || '',
+        note: rule.note || '', photo: null, tripId: '', extra: null, recurId: rule.id, createdAt: Date.now() + out.length, updatedAt: Date.now()});
+      rule.made.push(ym);
+    }
+  }
+  if (out.length) { await putMany('records', out); S.records.push(...out); }
+  await saveSettings();
+  return out.length;
+}
+function openRecurForm(rule, fromRec) {
+  const st = S.settings, isNew = !rule;
+  const r0 = fromRec || {};
+  const f = rule ? {...rule} : {id: uid(), type: r0.type || 'expense', amount: r0.amount ?? '', currency: st.baseCur, category: r0.category || '', payment: r0.payment || '',
+    note: r0.note || '', day: r0.date ? String(+r0.date.slice(8)) : String(new Date().getDate()), start: monthKey(r0.date || today()), end: '', active: true, made: []};
+  const m = openModal(`<h2>${isNew ? '新增每月固定收支' : '編輯每月固定收支'}</h2>
+    <div class="field"><div class="seg" id="rType"><button class="e" data-v="expense">支出</button><button class="i" data-v="income">收入</button></div></div>
+    <div class="field"><label>金額（${esc(st.baseCur)}）</label><input id="rAmt" type="number" inputmode="decimal" step="any" value="${esc(f.amount)}" placeholder="0" style="font-size:22px;font-weight:600"></div>
+    <div class="field"><label>備註／品項</label><input id="rNote" type="text" value="${esc(f.note)}" placeholder="例如：房租、Netflix、電話費"></div>
+    <div class="field"><label>類別</label><div class="chips" id="rCats"></div></div>
+    <div class="field"><label>付款方式</label><div class="chips" id="rPays"></div></div>
+    <div class="grid2">
+      <div class="field"><label>每月幾號</label><select id="rDay">${Array.from({length: 31}, (_, i) => `<option value="${i + 1}" ${String(f.day) === String(i + 1) ? 'selected' : ''}>每月 ${i + 1} 號</option>`).join('')}<option value="end" ${f.day === 'end' ? 'selected' : ''}>每月月底</option></select></div>
+      <div class="field"><label>從哪個月開始</label><input id="rStart" type="month" value="${esc(f.start)}"></div>
+      <div class="field"><label>到哪個月結束（選填）</label><input id="rEnd" type="month" value="${esc(f.end || '')}"></div>
+      <div class="field"><label>狀態</label><select id="rAct"><option value="1">啟用</option><option value="0" ${f.active === false ? 'selected' : ''}>暫停</option></select></div>
+    </div>
+    <div class="small muted" id="rHint" style="margin:0 4px 6px;line-height:1.6"></div>
+    <div class="actions">${isNew ? '' : '<button class="btn dan l" id="rDel">刪除規則</button>'}<button class="btn" id="rCancel">取消</button><button class="btn pri" id="rSave">儲存</button></div>`);
+  const draw = () => {
+    $$('#rType button', m).forEach(b => b.classList.toggle('on', b.dataset.v === f.type));
+    const cats = f.type === 'income' ? st.incomeCats : st.expenseCats;
+    if (!f.category) f.category = cats[0];
+    chipPicker($('#rCats', m), {items: [...new Set([...cats, f.category].filter(Boolean))], value: f.category, onPick: v => { f.category = v; draw(); },
+      onAdd: async v => { const k = f.type === 'income' ? 'incomeCats' : 'expenseCats'; if (!st[k].includes(v)) { st[k].push(v); await saveSettings(); } f.category = v; draw(); }});
+    chipPicker($('#rPays', m), {items: [...new Set([...st.payments, f.payment].filter(Boolean))], value: f.payment, allowNone: true, onPick: v => { f.payment = v; draw(); },
+      onAdd: async v => { if (!st.payments.includes(v)) { st.payments.push(v); await saveSettings(); } f.payment = v; draw(); }});
+    hint();
+  };
+  const hint = () => {
+    const tmp = {...f, day: $('#rDay', m).value, start: $('#rStart', m).value || monthKey(today()), end: $('#rEnd', m).value};
+    const t = today(), ym = monthKey(t), past = [];
+    for (let k = tmp.start, i = 0; k <= ym && i < 240; k = nextYM(k), i++) { if (tmp.end && k > tmp.end) break; if (dueDate(tmp, k) <= t && !(f.made || []).includes(k)) past.push(k); }
+    const nd = nextDue(tmp);
+    $('#rHint', m).innerHTML = `${nd ? `下一次：<b>${nd}</b>　` : ''}${past.length ? `儲存後會補記 <b>${past.length}</b> 筆（${past[0]}${past.length > 1 ? ' ～ ' + past[past.length - 1] : ''}）` : ''}`;
+  };
+  ['rDay', 'rStart', 'rEnd'].forEach(id => $('#' + id, m).onchange = hint);
+  $('#rType', m).onclick = e => { const b = e.target.closest('button'); if (b) { f.type = b.dataset.v; f.category = ''; draw(); } };
+  $('#rCancel', m).onclick = () => m.remove();
+  $('#rSave', m).onclick = async () => {
+    f.amount = parseFloat($('#rAmt', m).value); f.note = $('#rNote', m).value.trim(); f.day = $('#rDay', m).value;
+    f.start = $('#rStart', m).value || monthKey(today()); f.end = $('#rEnd', m).value || ''; f.active = $('#rAct', m).value === '1';
+    if (!(f.amount > 0)) { toast('請輸入金額'); return; }
+    if (f.end && f.end < f.start) { toast('結束月份不能早於開始月份'); return; }
+    const list = recurList(), i = list.findIndex(x => x.id === f.id);
+    if (i >= 0) list[i] = f; else list.push(f);
+    await saveSettings();
+    const n = await runRecurring();
+    m.remove(); toast(n ? `已儲存，並補記 ${n} 筆` : '已儲存'); render();
+  };
+  if (!isNew) $('#rDel', m).onclick = async () => {
+    if (!confirm('刪除這條規則？之後不會再自動記帳（已經記過的紀錄會保留）。')) return;
+    S.settings.recurring = recurList().filter(x => x.id !== f.id); await saveSettings(); m.remove(); render();
+  };
+  draw();
+}
+
 /* ================= 設定 ================= */
 function renderSettings(v) {
   const st = S.settings;
   const usage = S.records.reduce((s, r) => s + (r.photo ? r.photo.length : 0), 0);
   const chipList = key => `<div class="chips sortlist" data-list="${key}">${st[key].map((c, i) => `<span class="chip sortable" data-v="${esc(c)}"><span class="grip" title="按住拖曳調整順序">⠿</span>${esc(c)}<span class="x" data-del="${i}">✕</span></span>`).join('')}<span class="chip" data-add="1">＋ 新增</span></div>`;
   const booksByYear = {}; S.books.forEach(b => (booksByYear[b.year] = booksByYear[b.year] || []).push(b));
+  const rules = recurList();
   v.innerHTML = `
+  <div class="card"><h3>🔁 每月固定收支 <button class="btn sm sp" id="rNew">＋ 新增</button></h3>
+    ${rules.length ? rules.map(r => { const nd = nextDue(r); return `<div class="rec" data-rule="${r.id}" style="${r.active === false ? 'opacity:.5' : ''}">
+      <div class="dot" style="background:${colorOf(r.category)}">${esc((r.category || '?').slice(0, 1))}</div>
+      <div class="mid"><div class="t">${esc(r.note || r.category)}</div>
+        <div class="small muted">${r.day === 'end' ? '每月月底' : `每月 ${r.day} 號`} · ${esc(r.category)}${r.payment ? ' · ' + esc(r.payment) : ''}</div>
+        <div class="small muted">${r.active === false ? '已暫停' : nd ? `下一次 ${nd}` : '已結束'}${r.end ? `（到 ${r.end}）` : ''}</div></div>
+      <div class="amt ${r.type === 'income' ? 'inc' : 'exp'}">${r.type === 'income' ? '+' : '−'}${fmt(r.amount)}</div></div>`; }).join('')
+      : '<div class="small muted" style="line-height:1.7">例如房租、訂閱、保險、薪水。設定後，到了每月指定的日子打開米記帳，就會自動記一筆。也可以在記帳時勾選「設為每月固定」。</div>'}
+  </div>
   <div class="card"><h3>帳冊（依年份）<button class="btn sm sp" id="bNew">＋ 新增帳冊</button></h3>
     ${Object.keys(booksByYear).sort((a, b) => b - a).map(y => `<div class="lbl" style="margin-top:8px">${y} 年</div>
       ${booksByYear[y].map(b => { const n = S.records.filter(r => r.bookId === b.id).length; return `<div class="row" style="padding:6px 4px;border-bottom:1px dashed var(--line)">
@@ -1865,6 +2022,8 @@ function renderSettings(v) {
       st[key].splice(+t.dataset.del, 1); await saveSettings(); render();
     }
     if (list && t.dataset.add) { const n = prompt('名稱：'); if (n && n.trim() && !st[list.dataset.list].includes(n.trim())) { st[list.dataset.list].push(n.trim()); await saveSettings(); render(); } }
+    if (t.id === 'rNew') return openRecurForm();
+    const rr = t.closest('[data-rule]'); if (rr) return openRecurForm(recurList().find(x => x.id === rr.dataset.rule));
     if (t.id === 'bNew') {
       const y = prompt('年份：', S.ui.year); if (!y || !/^\d{4}$/.test(y.trim())) return;
       const n = prompt('帳冊名稱：', `${y} 帳冊`); if (!n || !n.trim()) return;
@@ -1929,10 +2088,14 @@ async function checkUpdate() {
     }
   } catch (e) {}
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  checkUpdate();
+  if (S.settings) { const n = await runRecurring(); if (n) { render(); toast(`已自動記入 ${n} 筆每月固定收支`); } }
+});
 
 /* ================= 啟動 ================= */
-load().then(() => { render(); checkUpdate(); }).catch(e => { document.body.innerHTML = `<div class="wrap"><div class="card">無法開啟資料庫：${esc(e.message)}<br>請確認沒有使用無痕模式。</div></div>`; });
+load().then(async () => { const n = await runRecurring(); render(); checkUpdate(); if (n) toast(`已自動記入 ${n} 筆每月固定收支`); }).catch(e => { document.body.innerHTML = `<div class="wrap"><div class="card">無法開啟資料庫：${esc(e.message)}<br>請確認沒有使用無痕模式。</div></div>`; });
 </script>
 </body>
 </html>
