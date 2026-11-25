@@ -64,6 +64,12 @@ nav.tabs button.on{background:var(--accent);color:#fff}
 .chip{white-space:nowrap;flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13.5px;display:inline-flex;align-items:center;gap:6px}
 .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .chip .x{opacity:.55;cursor:pointer}
+.ic{fill:currentColor;vertical-align:-.15em;flex:none}
+.ic.acc{color:var(--accent)}
+.tag .ic{margin-right:3px;color:var(--accent)}
+.tripnote .ic{color:var(--accent)}
+.drop .ic{margin-bottom:4px}
+.photo .ic{margin-bottom:2px}
 .chip .grip{cursor:grab;touch-action:none;color:var(--muted);margin:-5px -2px -5px -6px;padding:5px 2px 5px 6px;font-size:15px;line-height:1;user-select:none;-webkit-user-select:none}
 .sortlist .sortable{cursor:default;transition:transform .12s,box-shadow .12s}
 .sortlist.sorting{user-select:none;-webkit-user-select:none}
@@ -218,7 +224,7 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
     <button data-tab="recur">固定</button>
     <button data-tab="settings">設定</button>
   </nav>
-  <div class="searchbar"><span class="ic">🔍</span>
+  <div class="searchbar"><span class="ic"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></span>
     <input type="search" id="gq" placeholder="搜尋過去紀錄：備註、類別、付款方式、金額、店家…" autocomplete="off">
     <button class="clr" id="gqClr" title="清除" style="display:none">✕</button></div>
   </div>
@@ -227,7 +233,7 @@ th{color:var(--muted);font-weight:500;font-size:12.5px}
 <button class="fab" id="fab" title="記一筆">＋</button>
 
 <script>
-const APP_VERSION = '3.1（2026-11-25）';
+const APP_VERSION = '3.2（2026-11-25）';
 /* ================= 工具 ================= */
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -245,6 +251,20 @@ function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
 }
+/* 圖示：統一的實心簡單圖形（fill: currentColor） */
+const ICON_PATHS = {
+  repeat: 'M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z',
+  plane: 'M21 16v-2l-8-5V3.5C13 2.67 12.33 2 11.5 2S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z',
+  camera: 'M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM9 2 7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z',
+  search: 'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+  lock: 'M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zM9 8V6a3 3 0 1 1 6 0v2H9z',
+  image: 'M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z',
+  file: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z',
+  swap: 'M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z',
+  grip: 'M9 4a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm6 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM9 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm6 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM9 16a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm6 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z',
+  check: 'M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'
+};
+const ic = (name, size = '1em', cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="${ICON_PATHS[name]}"/></svg>`;
 const PALETTE = ['#B08968','#C27660','#6F9873','#D4A373','#8C7AA9','#6B93B8','#D99A8A','#A3B18A','#9C6644','#C9A66B','#8D99AE','#B5838D','#7F9C96','#CB997E'];
 function colorOf(name) {
   const cats = [...S.settings.expenseCats, ...S.settings.incomeCats];
@@ -342,7 +362,7 @@ function renderHeader() {
   if (!valid.includes(S.ui.bookId)) S.ui.bookId = 'all';
   $('#selBook').innerHTML = `<option value="all">全部帳冊</option>` +
     bs.map(b => `<option value="${b.id}" ${b.id === S.ui.bookId ? 'selected' : ''}>${esc(b.name)}</option>`).join('') +
-    (ts.length ? `<optgroup label="旅行">${ts.map(t => `<option value="trip:${t.id}" ${'trip:' + t.id === S.ui.bookId ? 'selected' : ''}>✈ ${esc(t.name)}</option>`).join('')}</optgroup>` : '') +
+    (ts.length ? `<optgroup label="旅行">${ts.map(t => `<option value="trip:${t.id}" ${'trip:' + t.id === S.ui.bookId ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</optgroup>` : '') +
     `<option value="__new">＋ 新增帳冊…</option>`;
   $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.ui.tab));
 }
@@ -377,33 +397,6 @@ function render() {
   $('#fab').style.display = ['list', 'stats', 'trips', 'recur'].includes(S.ui.tab) ? '' : 'none';
 }
 
-/* 預計的固定收支（今天以後、尚未記入）：只供預覽，不計入收支 */
-function projections(from, to) {
-  const t = today(), out = [];
-  for (const r of recurList()) {
-    if (r.active === false) continue;
-    let ym = r.start || monthKey(t);
-    if (ym < monthKey(from)) ym = monthKey(from);
-    for (let i = 0; i < 240 && ym <= monthKey(to); i++, ym = nextYM(ym)) {
-      if (r.end && ym > r.end) break;
-      if (r.start && ym < r.start) continue;
-      const d = dueDate(r, ym);
-      if (d > t && d >= from && d <= to && !(r.made || []).includes(ym)) out.push({rule: r, date: d, ym});
-    }
-  }
-  return out.sort((a, b) => a.date.localeCompare(b.date));
-}
-function projHTML(list) {
-  if (!list.length) return '';
-  const exp = list.filter(p => p.rule.type !== 'income').reduce((s, p) => s + +p.rule.amount, 0), inc = list.filter(p => p.rule.type === 'income').reduce((s, p) => s + +p.rule.amount, 0);
-  return `<div class="card proj"><h3>🔁 預計固定收支 <span class="small muted sp">尚未記入・不計入上方收支</span></h3>
-    <div class="small muted" style="margin:-6px 0 6px">${exp ? `預計支出 <b class="exp">${fmtI(exp)}</b>` : ''}${exp && inc ? '　' : ''}${inc ? `預計收入 <b class="inc">${fmtI(inc)}</b>` : ''}</div>
-    ${list.map(p => `<div class="rec" data-rule="${p.rule.id}">
-      <div class="dot" style="background:${colorOf(p.rule.category)};opacity:.55">${esc((p.rule.category || '?').slice(0, 1))}</div>
-      <div class="mid"><div class="t">${esc(p.rule.note || p.rule.category)}</div><div class="small muted">${p.date.slice(5).replace('-', '/')} · ${esc(p.rule.category)}${p.rule.end ? ` · 第 ${monthsBetween(p.rule.start, p.ym) + 1}/${monthsBetween(p.rule.start, p.rule.end) + 1} 期` : ''}</div></div>
-      <div class="amt ${p.rule.type === 'income' ? 'inc' : 'exp'}" style="opacity:.65">${p.rule.type === 'income' ? '+' : '−'}${fmt(p.rule.amount)}</div></div>`).join('')}
-  </div>`;
-}
 
 /* ================= 明細 ================= */
 function recHTML(r) {
@@ -414,7 +407,7 @@ function recHTML(r) {
     ${r.photo ? `<div class="thumbbox" data-photo="${r.id}" title="點一下放大照片"><img class="thumb" src="${r.photo}" alt="">${(r.photos || []).length ? `<span style="position:absolute;right:-4px;bottom:-4px;font-size:10px;background:var(--accent);color:#fff;border-radius:6px;padding:0 4px">${r.photos.length + 1}</span>` : ''}</div>` : `<div class="dot" style="background:${colorOf(r.category)}">${esc((r.category || '?').slice(0, 1))}</div>`}
     <div class="mid">
       <div class="t">${esc(title)}</div>
-      <div class="small muted">${esc(r.category)}${r.payment ? ' · ' + esc(r.payment) : ''}${t ? `<span class="tag">✈ ${esc(t.name)}</span>` : ''}${r.recurId ? `<span class="tag">${recurTag(r)}</span>` : ''}${r.extra && Object.keys(r.extra).length ? '<span class="tag">匯入</span>' : ''}</div>
+      <div class="small muted">${esc(r.category)}${r.payment ? ' · ' + esc(r.payment) : ''}${t ? `<span class="tag">${ic('plane')}${esc(t.name)}</span>` : ''}${r.recurId ? `<span class="tag">${recurTag(r)}</span>` : ''}${r.extra && Object.keys(r.extra).length ? '<span class="tag">匯入</span>' : ''}</div>
     </div>
     <div class="amt ${r.type === 'income' ? 'inc' : 'exp'}">
       ${r.type === 'income' ? '+' : '−'}${foreign ? fmtI(base(r)) : fmt(base(r))}
@@ -444,7 +437,7 @@ function listShift(d) {
 const forStats = arr => S.ui.incTrips || String(S.ui.bookId).startsWith('trip:') ? arr : arr.filter(r => !r.tripId);
 const tripNote = arr => {
   const n = arr.filter(r => r.tripId).length; if (String(S.ui.bookId).startsWith('trip:') || (!n && !S.ui.incTrips)) return '';
-  return `<div class="tripnote">✈ ${S.ui.incTrips ? `已納入旅行帳目 ${n} 筆` : `不含旅行帳目 ${n} 筆`}　<a data-inctrips="1">${S.ui.incTrips ? '改為不納入' : '改為納入'}</a></div>`;
+  return `<div class="tripnote">${ic('plane')} ${S.ui.incTrips ? `已納入旅行帳目 ${n} 筆` : `不含旅行帳目 ${n} 筆`}　<a data-inctrips="1">${S.ui.incTrips ? '改為不納入' : '改為納入'}</a></div>`;
 };
 document.addEventListener('click', e => { if (e.target.dataset && e.target.dataset.inctrips) { S.ui.incTrips = !S.ui.incTrips; render(); } });
 function renderList(v) {
@@ -467,10 +460,6 @@ function renderList(v) {
       ${Array.from({length: 12}, (_, i) => i + 1).map(m => `<span class="chip ${S.ui.month === m ? 'on' : ''}" data-m="${m}" style="${months.has(m) ? '' : 'opacity:.45'}">${m}月</span>`).join('')}
     </div></div>
   </div>`;
-  if (S.ui.bookId === 'all' || !String(S.ui.bookId).startsWith('trip:')) {
-    const from = `${S.ui.year}-${pad(S.ui.month || 1)}-01`, to = S.ui.month ? ymd(new Date(S.ui.year, S.ui.month, 0)) : `${S.ui.year}-12-31`;
-    html += projHTML(projections(from, to));
-  }
   if (!rs.length) html += `<div class="card empty">這段期間還沒有紀錄<br><span class="small">按右下角「＋」記一筆，或到「設定」最下方匯入舊資料</span></div>`;
   else {
     const byDay = {};
@@ -696,8 +685,8 @@ function openRecordForm(rec, preset = {}) {
     <div class="field"><label>照片</label>
       <div id="fPics" class="pics"></div>
       <label class="photo" id="fPhotoBox"><input type="file" accept="image/*" id="fPhoto" hidden multiple><span id="fPhotoInner"></span></label></div>
-    ${isNew ? `<label class="row recurchk"><input type="checkbox" id="fRecur"> 🔁 設為每月固定（每月同一天自動記這筆，期數可到「設定」調整）</label>`
-      : (rec.recurId ? `<div class="small muted" style="margin:0 4px 12px">🔁 這筆是由「每月固定收支」自動記入的${recurList().find(x => x.id === rec.recurId) ? '　<a id="fRecurEdit" style="color:var(--accent-d);text-decoration:underline;cursor:pointer">編輯規則</a>' : ''}</div>` : '')}
+    ${isNew ? `<label class="row recurchk"><input type="checkbox" id="fRecur"> ${ic('repeat', '16px', 'acc')} 設為每月固定（每月同一天自動記這筆，期數可到「設定」調整）</label>`
+      : (rec.recurId ? `<div class="small muted" style="margin:0 4px 12px">${ic('repeat', '14px', 'acc')} 這筆是由「每月固定收支」自動記入的${recurList().find(x => x.id === rec.recurId) ? '　<a id="fRecurEdit" style="color:var(--accent-d);text-decoration:underline;cursor:pointer">編輯規則</a>' : ''}</div>` : '')}
     ${f.extra && Object.keys(f.extra).length ? `<div class="field"><label>匯入時保留的原始欄位</label><div class="kv">${Object.entries(f.extra).map(([k, v]) => `<span>${esc(k)}</span><span>${esc(v)}</span>`).join('')}</div></div>` : ''}
     <div class="actions">
       ${isNew ? '' : '<button class="btn dan l" id="fDel">刪除</button><button class="btn" id="fDup">複製一筆</button>'}
@@ -741,8 +730,8 @@ function openRecordForm(rec, preset = {}) {
   }
   let pics = [f.photo, ...(f.photos || [])].filter(Boolean);
   function drawPhoto() {
-    $('#fPics', m).innerHTML = pics.map((src, i) => `<div class="pic"><img src="${src}" data-view="${i}"><button type="button" data-rm="${i}" title="移除">✕</button>${isNew ? '' : `<button type="button" class="mv" data-mv="${i}" title="這張照片屬於別筆">⇄ 移到別筆</button>`}${i === 0 && pics.length > 1 ? '<span>主圖</span>' : ''}</div>`).join('');
-    $('#fPhotoInner', m).innerHTML = pics.length ? '＋ 再加照片' : '📷 點此上傳收據或照片（可多張，會自動壓縮）';
+    $('#fPics', m).innerHTML = pics.map((src, i) => `<div class="pic"><img src="${src}" data-view="${i}"><button type="button" data-rm="${i}" title="移除">✕</button>${isNew ? '' : `<button type="button" class="mv" data-mv="${i}" title="這張照片屬於別筆">${ic('swap')} 移到別筆</button>`}${i === 0 && pics.length > 1 ? '<span>主圖</span>' : ''}</div>`).join('');
+    $('#fPhotoInner', m).innerHTML = pics.length ? '＋ 再加照片' : ic('camera', '22px', 'acc') + '<br>點此上傳收據或照片（可多張，會自動壓縮）';
   }
   function drawSugg() {
     const list = suggestions(f.note, f.type);
@@ -800,7 +789,7 @@ function openRecordForm(rec, preset = {}) {
         <div class="small muted">列出 ${esc(d)} 前後一天的紀錄。<br>點選後，如果那一筆已經有照片，可以選擇<b>交換</b>（兩筆的照片互換，適合兩張配反的情況）或<b>加入</b>。</div></div>
       <div class="card" style="padding:4px 8px">${cands.map(r => `<div class="rec" data-to="${r.id}">
         ${r.photo ? `<img class="thumb" src="${r.photo}">` : `<div class="dot" style="background:${colorOf(r.category)}">${esc((r.category || '?').slice(0, 1))}</div>`}
-        <div class="mid"><div class="t">${esc((r.note || r.category).split('\n')[0])}</div><div class="small muted">${r.date.slice(5)} · ${esc(recCat(r))}${r.photo ? ` · 📷 ${1 + (r.photos || []).length}` : ''}</div></div>
+        <div class="mid"><div class="t">${esc((r.note || r.category).split('\n')[0])}</div><div class="small muted">${r.date.slice(5)} · ${esc(recCat(r))}${r.photo ? ` · ${ic('camera')} ${1 + (r.photos || []).length}` : ''}</div></div>
         <div class="amt ${r.type === 'income' ? 'inc' : 'exp'}">${r.currency !== st.baseCur ? esc(r.currency) + ' ' : ''}${fmt(r.amount)}</div></div>`).join('') || '<div class="empty">前後一天沒有其他紀錄</div>'}</div>
       <div class="actions"><button class="btn" id="mvCancel">取消</button></div>`);
     $('#mvBig', mm).onclick = () => showPhoto(pics[i]);
@@ -842,7 +831,8 @@ function openRecordForm(rec, preset = {}) {
       const rule = {id: uid(), type: out.type, amount: out.amount, currency: out.currency, category: out.category, payment: out.payment, note: out.note,
         day: String(+out.date.slice(8)), start: monthKey(out.date), end: '', active: true, made: [monthKey(out.date)]};
       recurList().push(rule); out.recurId = rule.id; await put('records', out); await saveSettings();
-      m.remove(); toast(`已儲存，之後每月 ${rule.day} 號自動記帳`); render(); return;
+      const n = await runRecurring();
+      m.remove(); toast(`已儲存，並排入之後每月 ${rule.day} 號的 ${n} 筆`); render(); return;
     }
     m.remove(); toast(asNew ? '已複製一筆' : '已儲存');
     if (+out.date.slice(0, 4) !== +S.ui.year && S.ui.tab === 'list') toast(`已存到 ${out.date.slice(0, 4)} 年`);
@@ -1113,7 +1103,7 @@ function renderTrips(v) {
       const pct = t.budget ? Math.min(100, net / t.budget * 100) : 0;
       const over = t.budget && net > t.budget;
       return `<div class="card trip" data-id="${t.id}">
-        <div class="hd"><h3 style="margin:0">✈ ${esc(t.name)}</h3><span class="small muted">${s.rs.length} 筆</span></div>
+        <div class="hd"><h3 style="margin:0">${ic('plane', '18px', 'acc')} ${esc(t.name)}</h3><span class="small muted">${s.rs.length} 筆</span></div>
         <div class="row" style="margin:12px 0 6px;align-items:baseline">
           <span class="big ${over ? 'exp' : ''}">${esc(t.currency)} ${fmtI(net)}</span>
           <span class="muted">${t.budget ? `/ 預算 ${fmtI(t.budget)}` : '支出'}</span>
@@ -1139,7 +1129,7 @@ function renderTrips(v) {
     if (b.dataset.act === 'tcat') {
       const k = b.dataset.k;
       openDrill('cat', k, {
-        sub: `✈ ${t.name}`, cur: t.currency,
+        sub: `旅行・${t.name}`, cur: t.currency,
         pick: () => S.records.filter(r => r.tripId === t.id && r.type !== 'income' && (r.category || '未分類') === k),
         val: r => r.currency === t.currency ? +r.amount : base(r) / (+t.rate || 1)
       });
@@ -1162,7 +1152,7 @@ function renderTrips(v) {
     if (b.dataset.act === 'assign') openTripAssign(t);
     if (b.dataset.act === 'list') {
       const s = tripStats(t);
-      const m = openModal(`<h2>✈ ${esc(t.name)} 明細</h2><div class="card" style="padding:6px 10px">${s.rs.length ? [...s.rs].sort((a, b) => b.date.localeCompare(a.date)).map(r => recHTML(r).replace('<div class="t">', `<div class="t"><span class="small muted">${r.date.slice(5)}</span> `)).join('') : '<div class="empty">尚無紀錄</div>'}</div><div class="actions"><button class="btn" id="cl">關閉</button></div>`);
+      const m = openModal(`<h2>${ic('plane', '18px', 'acc')} ${esc(t.name)} 明細</h2><div class="card" style="padding:6px 10px">${s.rs.length ? [...s.rs].sort((a, b) => b.date.localeCompare(a.date)).map(r => recHTML(r).replace('<div class="t">', `<div class="t"><span class="small muted">${r.date.slice(5)}</span> `)).join('') : '<div class="empty">尚無紀錄</div>'}</div><div class="actions"><button class="btn" id="cl">關閉</button></div>`);
       $('#cl', m).onclick = () => m.remove();
       m.onclick = e2 => { const r = e2.target.closest('.rec'); if (r) { m.remove(); openRecordForm(S.records.find(x => x.id === r.dataset.id)); } };
     }
@@ -1548,7 +1538,7 @@ function renderImport(v) {
     <div class="small muted" style="margin-bottom:12px;line-height:1.7">支援 CSV / TSV / TXT / JSON / Excel（xlsx、xls）。會自動偵測欄位、Big5 編碼、民國年、負數金額、分開的收入／支出欄；對應不到的欄位會原樣保存在「原始欄位」中，不會遺失。也可以匯入本站匯出的備份檔。</div>
     <div class="small muted" style="margin:-6px 0 10px">米記帳版本 ${APP_VERSION}</div>
     <label class="drop" id="drop"><input type="file" id="impFile" hidden accept=".csv,.tsv,.txt,.json,.xlsx,.xls,.xlsm,.ods">
-      <div style="font-size:26px">📄</div><div>點此選擇檔案，或拖曳到這裡</div>${IMP.name ? `<div class="small muted" style="margin-top:6px">目前：${esc(IMP.name)}</div>` : ''}</label>
+      <div>${ic('file', '30px', 'acc')}</div><div>點此選擇檔案，或拖曳到這裡</div>${IMP.name ? `<div class="small muted" style="margin-top:6px">目前：${esc(IMP.name)}</div>` : ''}</label>
     <details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">或直接貼上表格文字</summary>
       <textarea id="impPaste" rows="5" style="margin-top:8px" placeholder="從試算表複製後貼上…"></textarea>
       <div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn sm" id="impPasteGo">解析</button></div></details>
@@ -1556,7 +1546,7 @@ function renderImport(v) {
   <div class="card"><h3>批次匯入照片</h3>
     <div class="small muted" style="margin-bottom:12px;line-height:1.7">一次選取多張照片，依檔名「日期_類別_編號」自動配對到過去的紀錄（例如 Monny 匯出的 <code>2026-02-10_午餐_004.jpg</code>）。同一天同類別有多筆時依編號順序配對，無法確定的會請你看照片確認。照片會自動壓縮。</div>
     <label class="drop" id="phDrop"><input type="file" id="phFiles" hidden multiple accept="image/*">
-      <div style="font-size:26px">🖼️</div><div>點此選擇多張照片</div></label>
+      <div>${ic('image', '30px', 'acc')}</div><div>點此選擇多張照片</div></label>
     <div id="phStep"></div></div>`;
   const input = $('#impFile'), drop = $('#drop');
   const handle = async file => {
@@ -1677,7 +1667,7 @@ function renderPhotoStep() {
   const cnt = {}; items.forEach(it => { if (it.target) cnt[it.target] = (cnt[it.target] || 0) + 1; });
   const n = k => items.filter(it => it.status === k).length;
   const ready = items.filter(it => it.target).length;
-  const label = r => `${r.date.slice(5)} ${recCat(r)} · ${r.currency !== base0 ? r.currency + ' ' : ''}${fmt(r.amount)} · ${(r.note || '').replace(/\s+/g, ' ').slice(0, 22)}${r.photo ? ' 📷' : ''}`;
+  const label = r => `${r.date.slice(5)} ${recCat(r)} · ${r.currency !== base0 ? r.currency + ' ' : ''}${fmt(r.amount)} · ${(r.note || '').replace(/\s+/g, ' ').slice(0, 22)}${r.photo ? '（有照片）' : ''}`;
   const BADGE = {ok: ['自動配對', 'var(--inc)'], ocr: ['金額相符', 'var(--inc)'], manual: ['已手動指定', 'var(--inc)'], check: ['請確認', 'var(--accent-d)'], none: ['找不到紀錄', 'var(--exp)'], name: ['檔名無法辨識', 'var(--exp)']};
   const RANK = {check: 0, none: 1, name: 2, manual: 3, ocr: 4, ok: 5};
   const shown = items.map((it, i) => [it, i]).filter(([it]) => PH.filter === 'all' || (PH.filter === 'todo' ? ['check', 'none', 'name'].includes(it.status) : true))
@@ -1685,7 +1675,7 @@ function renderPhotoStep() {
   box.innerHTML = `
     <div class="grid2" style="margin-top:14px">
       <div class="field"><label>只配對到這個範圍的紀錄</label><select id="phScope">${phScopes().map(([k, t]) => `<option value="${esc(k)}" ${k === PH.scope ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
-      <div class="field"><label>收據金額辨識（OCR，選用）</label>${PH.ocr ? `<button class="btn" id="phStop" style="width:100%">辨識中 ${PH.ocr.done}/${PH.ocr.total}… 停止</button>` : `<button class="btn" id="phOCR" style="width:100%" ${items.some(it => it.info && !it.nums) ? '' : 'disabled'}>🔍 讀取收據金額來配對</button>`}</div>
+      <div class="field"><label>收據金額辨識（OCR，選用）</label>${PH.ocr ? `<button class="btn" id="phStop" style="width:100%">辨識中 ${PH.ocr.done}/${PH.ocr.total}… 停止</button>` : `<button class="btn" id="phOCR" style="width:100%" ${items.some(it => it.info && !it.nums) ? '' : 'disabled'}>${ic('search')} 讀取收據金額來配對</button>`}</div>
     </div>
     <div class="small" style="margin:4px 0 8px;line-height:1.8">共 ${items.length} 張：<span class="ok">自動配對 ${n('ok')}</span> · <span class="ok">金額相符 ${n('ocr')}</span>${n('manual') ? ` · <span class="ok">手動 ${n('manual')}</span>` : ''} · <span style="color:var(--accent-d)">請確認 ${n('check')}</span> · <span class="bad">找不到 ${n('none')}</span>${n('name') ? ` · <span class="bad">檔名無法辨識 ${n('name')}</span>` : ''}</div>
     <div class="chips" style="margin-bottom:10px" id="phFilter"><span class="chip ${PH.filter === 'todo' ? 'on' : ''}" data-f="todo">只看需要處理的</span><span class="chip ${PH.filter === 'all' ? 'on' : ''}" data-f="all">全部</span></div>
@@ -1699,8 +1689,8 @@ function renderPhotoStep() {
         <div style="flex:1;min-width:0"><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.file.name)}</div>
           <div style="margin-top:2px">${bt ? `<span class="tag" style="margin:0;color:${bc}">${bt}</span>` : ''}${it.target && cnt[it.target] > 1 ? `<span class="tag">這筆共 ${cnt[it.target]} 張</span>` : ''}${nums ? `<span class="tag">收據數字 ${nums}</span>` : ''}</div>
           <select data-ph="${i}" style="margin-top:6px;padding:6px 10px;font-size:13px"><option value="">（不套用）</option>${cands.map(r => `<option value="${r.id}" ${r.id === it.target ? 'selected' : ''}>${ocrScore(it, r) ? '✓ ' : ''}${esc(label(r))}</option>`).join('')}</select></div></div>`;
-    }).join('') || '<div class="empty small">沒有需要處理的照片 🎉</div>'}</div>
-    <div class="small muted" style="margin-top:8px">已有照片的紀錄（📷）會被這次的照片取代。</div>
+    }).join('') || '<div class="empty small">沒有需要處理的照片</div>'}</div>
+    <div class="small muted" style="margin-top:8px">已有照片的紀錄（標示「有照片」）會被這次的照片取代。</div>
     <div class="actions"><button class="btn" id="phClear">清除</button><button class="btn pri" id="phGo" ${ready && !PH.ocr ? '' : 'disabled'}>套用 ${ready} 張照片</button></div>`;
   box.onchange = e => {
     if (e.target.id === 'phScope') { PH.scope = e.target.value; matchPhotos(); return renderPhotoStep(); }
@@ -1937,26 +1927,29 @@ const addMonths = (ym, n) => { let [y, m] = ym.split('-').map(Number); m += n; y
 const monthsBetween = (a, b) => { const [y1, m1] = a.split('-').map(Number), [y2, m2] = b.split('-').map(Number); return (y2 - y1) * 12 + (m2 - m1); };
 const recurMode = r => r.count ? 'count' : r.end ? 'until' : 'forever';
 const nextYM = ym => { let [y, m] = ym.split('-').map(Number); m++; if (m > 12) { m = 1; y++; } return `${y}-${pad(m)}`; };
-function nextDue(rule) {   // 今天以後（含今天）第一個還沒記的日期
-  const t = today(); let ym = rule.start && rule.start > monthKey(t) ? rule.start : monthKey(t);
-  for (let i = 0; i < 240; i++, ym = nextYM(ym)) {
-    if (rule.end && ym > rule.end) return null;
+/* 固定收支會直接排成那一天的紀錄，預先排到明年 12 月 */
+const recurHorizon = () => `${new Date().getFullYear() + 1}-12`;
+function schedule(rule, from, to) {   // 規則期間內、日期介於 from～to 的每一期（不管有沒有記）
+  const out = []; let ym = rule.start || monthKey(today());
+  for (let i = 0; i < 600 && (!to || ym <= monthKey(to)); i++, ym = nextYM(ym)) {
+    if (rule.end && ym > rule.end) break;
     const d = dueDate(rule, ym);
-    if (d >= t && !(rule.made || []).includes(ym)) return d;
+    if ((!from || d >= from) && (!to || d <= to)) out.push({ym, date: d});
   }
-  return null;
+  return out;
 }
-/* 打開網頁時補記：從開始月份到本月，日期已到且尚未記過的月份 */
+function nextDue(rule) {   // 今天以後（含今天）的下一期
+  const t = today(); const up = schedule(rule, t, addDays(t, 3700));
+  return up.length ? up[0].date : null;
+}
+const passedCount = rule => schedule(rule, null, today()).length;   // 已到期的期數
 async function runRecurring() {
   const rules = recurList().filter(r => r.active !== false); if (!rules.length) return 0;
-  const t = today(), out = [];
+  const hz = recurHorizon(), out = [];
   for (const rule of rules) {
     rule.made = rule.made || [];
-    let ym = rule.start || monthKey(t);
-    for (let i = 0; i < 240 && ym <= monthKey(t); i++, ym = nextYM(ym)) {
-      if (rule.end && ym > rule.end) break;
-      const d = dueDate(rule, ym);
-      if (d > t || rule.made.includes(ym)) continue;
+    for (const {ym, date: d} of schedule(rule, null, `${hz}-31`)) {
+      if (rule.made.includes(ym)) continue;
       const cur = rule.currency || S.settings.baseCur;
       out.push({id: uid(), bookId: (await ensureBook(+d.slice(0, 4))).id, type: rule.type, amount: +rule.amount, currency: cur,
         rate: cur === S.settings.baseCur ? 1 : (S.settings.rates[cur] || 1), category: rule.category, date: d, payment: rule.payment || '',
@@ -1968,14 +1961,22 @@ async function runRecurring() {
   await saveSettings();
   return out.length;
 }
+/* 修改／暫停／刪除規則時：今天以後的紀錄移除（之後依新規則重排），今天以前的保留 */
+async function clearFuture(rule) {
+  const t = today(), fut = S.records.filter(r => r.recurId === rule.id && r.date > t);
+  await delMany('records', fut.map(r => r.id));
+  const ids = new Set(fut.map(r => r.id)); S.records = S.records.filter(r => !ids.has(r.id));
+  rule.made = (rule.made || []).filter(ym => dueDate(rule, ym) <= t);
+  return fut.length;
+}
 function recurProgress(r) {
   if (!r.end) return '・不限期';
-  const total = monthsBetween(r.start, r.end) + 1, done = (r.made || []).filter(k => k >= r.start && k <= r.end).length;
-  return r.count ? `・已記 ${done}／${total} 期` : `・到 ${r.end}（已記 ${done}／${total} 期）`;
+  const total = monthsBetween(r.start, r.end) + 1, done = passedCount(r);
+  return r.count ? `・第 ${done}／${total} 期` : `・到 ${r.end}（第 ${done}／${total} 期）`;
 }
 function recurTag(rec) {
-  const r = recurList().find(x => x.id === rec.recurId); if (!r || !r.end) return '🔁 固定';
-  return `🔁 ${monthsBetween(r.start, monthKey(rec.date)) + 1}/${monthsBetween(r.start, r.end) + 1}`;
+  const r = recurList().find(x => x.id === rec.recurId); if (!r || !r.end) return `${ic('repeat')}固定`;
+  return `${ic('repeat')}${monthsBetween(r.start, monthKey(rec.date)) + 1}/${monthsBetween(r.start, r.end) + 1}`;
 }
 function openRecurForm(rule, fromRec) {
   const st = S.settings, isNew = !rule;
@@ -2028,14 +2029,16 @@ function openRecurForm(rule, fromRec) {
   const hint = () => {
     const st0 = $('#rStart', m).value || monthKey(today());
     const tmp = {...f, day: $('#rDay', m).value, start: st0, end: readEnd(st0)};
-    const t = today(), ym = monthKey(t), past = [];
-    for (let k = tmp.start, i = 0; k <= ym && i < 240; k = nextYM(k), i++) { if (tmp.end && k > tmp.end) break; if (dueDate(tmp, k) <= t && !(f.made || []).includes(k)) past.push(k); }
+    const t = today(), keep = new Set((f.made || []).filter(k => dueDate(f, k) <= t));
+    const todo = schedule(tmp, null, `${recurHorizon()}-31`).filter(p => !(p.date <= t && keep.has(p.ym)));
+    const past = todo.filter(p => p.date <= t), fut = todo.filter(p => p.date > t);
     const nd = nextDue(tmp);
     const total = tmp.end ? monthsBetween(tmp.start, tmp.end) + 1 : 0;
     $('#rHint', m).innerHTML = [
       tmp.end ? `共 <b>${total}</b> 期：${dueDate(tmp, tmp.start)} ～ <b>${dueDate(tmp, tmp.end)}</b>` : '不限期數，直到暫停或刪除',
-      nd ? `下一次：<b>${nd}</b>` : (tmp.end ? '已全部記完' : ''),
-      past.length ? `儲存後會補記 <b>${past.length}</b> 筆（${past[0]}${past.length > 1 ? ' ～ ' + past[past.length - 1] : ''}）` : ''
+      nd ? `下一次：<b>${nd}</b>` : (tmp.end ? '已全部到期' : ''),
+      past.length ? `儲存後補記 <b>${past.length}</b> 筆（${past[0].ym}${past.length > 1 ? ' ～ ' + past[past.length - 1].ym : ''}）` : '',
+      fut.length ? `並排入之後的 <b>${fut.length}</b> 筆（到 ${fut[fut.length - 1].date}）` : ''
     ].filter(Boolean).join('<br>');
   };
   ['rDay', 'rStart', 'rEnd'].forEach(id => $('#' + id, m).onchange = hint);
@@ -2052,13 +2055,15 @@ function openRecurForm(rule, fromRec) {
     f.end = readEnd(f.start);
     if (f.end && f.end < f.start) { toast('結束月份不能早於開始月份'); return; }
     const list = recurList(), i = list.findIndex(x => x.id === f.id);
-    if (i >= 0) list[i] = f; else list.push(f);
+    if (i >= 0) { await clearFuture(list[i]); f.made = list[i].made; list[i] = f; } else list.push(f);
     await saveSettings();
     const n = await runRecurring();
-    m.remove(); toast(n ? `已儲存，並補記 ${n} 筆` : '已儲存'); render();
+    m.remove(); toast(n ? `已儲存，排入 ${n} 筆` : '已儲存'); render();
   };
   if (!isNew) $('#rDel', m).onclick = async () => {
-    if (!confirm('刪除這條規則？之後不會再自動記帳（已經記過的紀錄會保留）。')) return;
+    const nf = S.records.filter(r => r.recurId === f.id && r.date > today()).length;
+    if (!confirm(`刪除這條規則？${nf ? `\n今天以後已排入的 ${nf} 筆會一起刪除；` : '\n'}今天以前的紀錄會保留。`)) return;
+    await clearFuture(rule || f);
     S.settings.recurring = recurList().filter(x => x.id !== f.id); await saveSettings(); m.remove(); render();
   };
   draw();
@@ -2070,10 +2075,10 @@ function renderRecur(v) {
   const rules = recurList();
   const g = {active: [], paused: [], ended: []}; rules.forEach(r => g[recurStatus(r)].push(r));
   const mExp = g.active.filter(r => r.type !== 'income').reduce((s, r) => s + +r.amount, 0), mInc = g.active.filter(r => r.type === 'income').reduce((s, r) => s + +r.amount, 0);
-  const t = today(), in30 = projections(addDays(t, 1), addDays(t, 30));
+  const t = today(), in30 = g.active.flatMap(r => schedule(r, addDays(t, 1), addDays(t, 30)));
   const row = r => {
-    const recs = S.records.filter(x => x.recurId === r.id), sum = recs.reduce((s, x) => s + +x.amount, 0), nd = nextDue(r);
-    const total = r.end ? monthsBetween(r.start, r.end) + 1 : 0, done = (r.made || []).filter(k => k >= r.start && (!r.end || k <= r.end)).length;
+    const recs = S.records.filter(x => x.recurId === r.id && x.date <= t), sum = recs.reduce((s, x) => s + +x.amount, 0), nd = nextDue(r);
+    const total = r.end ? monthsBetween(r.start, r.end) + 1 : 0, done = passedCount(r);
     return `<div class="rcard" data-rule="${r.id}">
       <div class="row" style="flex-wrap:nowrap;gap:12px">
         <div class="dot" style="background:${colorOf(r.category)}">${esc((r.category || '?').slice(0, 1))}</div>
@@ -2107,11 +2112,12 @@ function renderRecur(v) {
 }
 function openRecurDetail(r) {
   if (!r) return;
-  const m = openModal(`<h2>🔁 ${esc(r.note || r.category)}</h2><div id="rdBody"></div>`);
+  const m = openModal(`<h2>${ic('repeat', '18px', 'acc')} ${esc(r.note || r.category)}</h2><div id="rdBody"></div>`);
   const draw = () => {
     const recs = S.records.filter(x => x.recurId === r.id).sort((a, b) => b.date.localeCompare(a.date));
     const sum = recs.reduce((s, x) => s + base(x), 0);
-    const up = projections(addDays(today(), 1), addDays(today(), 3660)).filter(p => p.rule.id === r.id).slice(0, 12);
+    const up = r.active === false ? [] : schedule(r, addDays(today(), 1), addDays(today(), 3700)).slice(0, 12);
+    const past = recs.filter(x => x.date <= today());
     const total = r.end ? monthsBetween(r.start, r.end) + 1 : 0;
     $('#rdBody', m).innerHTML = `
       <div class="kv" style="margin-bottom:12px">
@@ -2121,9 +2127,9 @@ function openRecurDetail(r) {
         <span>期間</span><span>${r.start} 起${r.end ? `，到 ${r.end}（共 ${total} 期）` : '，不限期'}</span>
         <span>狀態</span><span>${({active: '進行中', paused: '已暫停', ended: '已結束'})[recurStatus(r)]}</span>
       </div>
-      <div class="sum3" style="margin-bottom:12px"><div><span class="small muted">已記筆數</span><b>${recs.length}</b></div><div><span class="small muted">已記合計</span><b class="${r.type === 'income' ? 'inc' : 'exp'}">${fmtI(sum)}</b></div><div><span class="small muted">${total ? '剩餘期數' : '接下來'}</span><b>${total ? Math.max(0, total - (r.made || []).filter(k => k >= r.start && k <= r.end).length) : up.length ? '每月' : '—'}</b></div></div>
-      ${up.length ? `<div class="lbl">接下來${up.length >= 12 ? ' 12 期' : ''}（預計）</div><div class="card" style="padding:4px 10px">${up.map(p => `<div class="row small" style="justify-content:space-between;padding:7px 2px;border-bottom:1px dashed var(--line)"><span>${p.date}${total ? `　第 ${monthsBetween(r.start, p.ym) + 1}/${total} 期` : ''}</span><span class="muted">${fmt(r.amount)}</span></div>`).join('')}</div>` : ''}
-      <div class="lbl">已記入的紀錄</div>
+      <div class="sum3" style="margin-bottom:12px"><div><span class="small muted">已到期</span><b>${past.length} 筆</b></div><div><span class="small muted">已付合計</span><b class="${r.type === 'income' ? 'inc' : 'exp'}">${fmtI(past.reduce((s, x) => s + base(x), 0))}</b></div><div><span class="small muted">${total ? '剩餘期數' : '接下來'}</span><b>${total ? Math.max(0, total - passedCount(r)) : up.length ? '每月' : '—'}</b></div></div>
+      ${up.length ? `<div class="lbl">接下來${up.length >= 12 ? ' 12 期' : ''}</div><div class="card" style="padding:4px 10px">${up.map(p => `<div class="row small" style="justify-content:space-between;padding:7px 2px;border-bottom:1px dashed var(--line)"><span>${p.date}${total ? `　第 ${monthsBetween(r.start, p.ym) + 1}/${total} 期` : ''}</span><span class="muted">${fmt(r.amount)}</span></div>`).join('')}</div>` : ''}
+      <div class="lbl">紀錄（含已排入的未來日期）</div>
       <div class="card" style="padding:4px 10px">${recs.length ? recs.map(x => recHTML(x).replace('<div class="t">', `<div class="t"><span class="small muted">${x.date.replace(/-/g, '/')}</span>　`)).join('') : '<div class="empty small">還沒有記入的紀錄</div>'}</div>
       <div class="actions"><button class="btn" id="rdClose">關閉</button><button class="btn pri" id="rdEdit">編輯規則</button></div>`;
     fitNums();
@@ -2177,7 +2183,7 @@ async function setPassword() {
 function renderSettings(v) {
   const st = S.settings;
   const usage = S.records.reduce((s, r) => s + (r.photo ? r.photo.length : 0), 0);
-  const chipList = key => `<div class="chips sortlist" data-list="${key}">${st[key].map((c, i) => `<span class="chip sortable" data-v="${esc(c)}"><span class="grip" title="按住拖曳調整順序">⠿</span>${esc(c)}<span class="x" data-del="${i}">✕</span></span>`).join('')}<span class="chip" data-add="1">＋ 新增</span></div>`;
+  const chipList = key => `<div class="chips sortlist" data-list="${key}">${st[key].map((c, i) => `<span class="chip sortable" data-v="${esc(c)}"><span class="grip" title="按住拖曳調整順序">${ic('grip', '16px')}</span>${esc(c)}<span class="x" data-del="${i}">✕</span></span>`).join('')}<span class="chip" data-add="1">＋ 新增</span></div>`;
   const booksByYear = {}; S.books.forEach(b => (booksByYear[b.year] = booksByYear[b.year] || []).push(b));
   v.innerHTML = `
   <div class="card"><h3>帳冊（依年份）<button class="btn sm sp" id="bNew">＋ 新增帳冊</button></h3>
@@ -2186,7 +2192,7 @@ function renderSettings(v) {
         <span style="flex:1">${esc(b.name)} <span class="small muted">${n} 筆</span></span>
         <button class="btn sm" data-bedit="${b.id}">改名／年份</button><button class="btn sm dan" data-bdel="${b.id}">刪除</button></div>`; }).join('')}`).join('')}
   </div>
-  <div class="small muted" style="margin:0 6px 8px">按住 ⠿ 拖曳可以調整順序，記帳時的選項會照這個順序排列。</div>
+  <div class="small muted" style="margin:0 6px 8px">按住 ${ic('grip', '14px')} 拖曳可以調整順序，記帳時的選項會照這個順序排列。</div>
   <div class="card"><h3>支出類別</h3>${chipList('expenseCats')}</div>
   <div class="card"><h3>收入類別</h3>${chipList('incomeCats')}</div>
   <div class="card"><h3>付款方式</h3>${chipList('payments')}</div>
@@ -2197,7 +2203,7 @@ function renderSettings(v) {
     <div class="small muted" style="margin-bottom:10px;line-height:1.7">資料只存在這台裝置的瀏覽器裡（IndexedDB），不會上傳到 GitHub。換手機、清除瀏覽器資料前請先備份。目前共 ${S.records.length} 筆，照片約 ${(usage * 0.75 / 1048576).toFixed(1)} MB。</div>
     <div class="row"><button class="btn pri" id="bak">下載完整備份（JSON，含照片）</button><button class="btn" id="csv">匯出 CSV</button>
       <button class="btn" id="restore">從備份還原</button><input type="file" id="restoreFile" accept=".json" hidden></div>
-    <div class="row" style="margin-top:14px"><button class="btn dan sm" id="wipe">🔒 清除全部資料</button><button class="btn sm" id="pwSet">${st.wipeHash ? '修改清除密碼' : '設定清除密碼'}</button><span class="small muted" style="margin-left:auto">版本 ${APP_VERSION}</span></div></div>
+    <div class="row" style="margin-top:14px"><button class="btn dan sm" id="wipe">${ic('lock')} 清除全部資料</button><button class="btn sm" id="pwSet">${st.wipeHash ? '修改清除密碼' : '設定清除密碼'}</button><span class="small muted" style="margin-left:auto">版本 ${APP_VERSION}</span></div></div>
   <div class="lbl" style="margin:22px 6px 8px">匯入</div>
   <div id="impArea"></div>`;
   renderImport($('#impArea', v));
@@ -2281,11 +2287,11 @@ async function checkUpdate() {
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible') return;
   checkUpdate();
-  if (S.settings) { const n = await runRecurring(); if (n) { render(); toast(`已自動記入 ${n} 筆每月固定收支`); } }
+  if (S.settings) { const n = await runRecurring(); if (n) { render(); toast(`已排入 ${n} 筆固定收支`); } }
 });
 
 /* ================= 啟動 ================= */
-load().then(async () => { const n = await runRecurring(); render(); checkUpdate(); if (n) toast(`已自動記入 ${n} 筆每月固定收支`); }).catch(e => { document.body.innerHTML = `<div class="wrap"><div class="card">無法開啟資料庫：${esc(e.message)}<br>請確認沒有使用無痕模式。</div></div>`; });
+load().then(async () => { const n = await runRecurring(); render(); checkUpdate(); if (n) toast(`已排入 ${n} 筆固定收支`); }).catch(e => { document.body.innerHTML = `<div class="wrap"><div class="card">無法開啟資料庫：${esc(e.message)}<br>請確認沒有使用無痕模式。</div></div>`; });
 </script>
 </body>
 </html>
